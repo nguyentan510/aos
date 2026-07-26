@@ -122,8 +122,8 @@ function New-ContextFixture([object]$Scenario, [string]$WorkRoot) {
     }
 }
 
-function Invoke-Context([object]$Scenario, [string]$WorkRoot) {
-    $result = Invoke-Aos @("context", $WorkRoot, "--limit", ([string]$Scenario.context_limit), "--format", "json")
+function Invoke-Context([object]$Scenario, [string]$WorkRoot, [string]$Profile, [int]$BudgetBytes) {
+    $result = Invoke-Aos @("context", $WorkRoot, "--limit", ([string]$Scenario.context_limit), "--profile", $Profile, "--budget-bytes", ([string]$BudgetBytes), "--format", "json")
     if ($result.ExitCode -ne 0) {
         Fail "context command failed for $($Scenario.id): $($result.Output)"
     }
@@ -138,6 +138,9 @@ function Invoke-Context([object]$Scenario, [string]$WorkRoot) {
     if ($null -eq $envelope.data.selected -or $null -eq $envelope.data.withheld) {
         Fail "context envelope is missing selected/withheld data for $($Scenario.id)"
     }
+    if ($envelope.data.profile -ne $Profile -or [int]$envelope.data.budget_bytes -ne $BudgetBytes) {
+        Fail "context profile/budget mismatch for $($Scenario.id)"
+    }
     $selectedJson = ConvertTo-Json -InputObject (,@($envelope.data.selected)) -Compress
     $withheldJson = ConvertTo-Json -InputObject (,@($envelope.data.withheld)) -Compress
     $withheldWithReason = @($envelope.data.withheld | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.reason) }).Count
@@ -147,6 +150,8 @@ function Invoke-Context([object]$Scenario, [string]$WorkRoot) {
         WithheldWithReason = $withheldWithReason
         SelectedBytes = [Text.Encoding]::UTF8.GetByteCount($selectedJson)
         WithheldBytes = [Text.Encoding]::UTF8.GetByteCount($withheldJson)
+        Profile = [string]$envelope.data.profile
+        BudgetBytes = [int]$envelope.data.budget_bytes
         Policy = [string]$envelope.data.policy
         Raw = $result.Output
     }
@@ -182,8 +187,13 @@ foreach ($scenario in $manifest.scenarios) {
     $baselineBytes = Get-FileBytes -RepositoryPath $repositoryPath -RelativePaths $scenario.baseline_files
     $workRoot = Join-Path $runRoot $scenario.id
     New-ContextFixture -Scenario $scenario -WorkRoot $workRoot
-    $context = Invoke-Context -Scenario $scenario -WorkRoot $workRoot
+    $profile = if ($scenario.context_profile) { [string]$scenario.context_profile } else { [string]$manifest.default_context_profile }
+    $budgetBytes = if ($scenario.context_budget_bytes) { [int]$scenario.context_budget_bytes } else { [int]$manifest.default_context_budget_bytes }
+    $context = Invoke-Context -Scenario $scenario -WorkRoot $workRoot -Profile $profile -BudgetBytes $budgetBytes
     if ($context.WithheldCount -ne $context.WithheldWithReason) {
+        $allStructuralPass = $false
+    }
+    if ($context.SelectedBytes -gt $context.BudgetBytes) {
         $allStructuralPass = $false
     }
     $baselineTokens = [Math]::Ceiling($baselineBytes / 4)
@@ -213,6 +223,8 @@ foreach ($scenario in $manifest.scenarios) {
         baseline_files = @($scenario.baseline_files)
         baseline_bytes = $baselineBytes
         selected_context_bytes = $context.SelectedBytes
+        context_profile = $context.Profile
+        context_budget_bytes = $context.BudgetBytes
         estimated_baseline_tokens = $baselineTokens
         estimated_context_tokens = $aosTokens
         estimated_context_reduction_percent = $reduction

@@ -1,4 +1,4 @@
-use crate::intelligence::{self, RecordInput, RecordKind};
+use crate::intelligence::{self, ContextProfile, RecordInput, RecordKind};
 use crate::model::{CLI_CONTRACT_VERSION, CLI_VERSION, Diagnostic, OutputFormat, ResultEnvelope};
 use crate::repository;
 use std::path::PathBuf;
@@ -50,6 +50,8 @@ pub struct Options {
     pub classification: Option<String>,
     pub freshness: Option<String>,
     pub limit: usize,
+    pub context_profile: ContextProfile,
+    pub budget_bytes: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -89,6 +91,8 @@ where
     let mut classification = None;
     let mut freshness = None;
     let mut limit = 20usize;
+    let mut context_profile = ContextProfile::Full;
+    let mut budget_bytes = None;
     let mut iterator = arguments.into_iter();
 
     while let Some(argument) = iterator.next() {
@@ -111,6 +115,8 @@ where
                     classification,
                     freshness,
                     limit,
+                    context_profile,
+                    budget_bytes,
                 });
             }
             "-V" | "--version" => command = Some(Command::Version),
@@ -155,6 +161,27 @@ where
                 limit = value[8..]
                     .parse()
                     .map_err(|_| "--limit requires a positive integer".to_string())?;
+            }
+            "--profile" => {
+                context_profile = parse_context_profile(&next_value(&mut iterator, "--profile")?)?;
+            }
+            value if value.starts_with("--profile=") => {
+                context_profile = parse_context_profile(value.trim_start_matches("--profile="))?;
+            }
+            "--budget-bytes" => {
+                budget_bytes = Some(
+                    next_value(&mut iterator, "--budget-bytes")?
+                        .parse()
+                        .map_err(|_| "--budget-bytes requires a positive integer".to_string())?,
+                );
+            }
+            value if value.starts_with("--budget-bytes=") => {
+                budget_bytes = Some(
+                    value
+                        .trim_start_matches("--budget-bytes=")
+                        .parse()
+                        .map_err(|_| "--budget-bytes requires a positive integer".to_string())?,
+                );
             }
             "--authority" => {
                 authority = Some(
@@ -209,6 +236,14 @@ where
     if limit == 0 {
         return Err("--limit requires a positive integer".to_string());
     }
+    if budget_bytes == Some(0) {
+        return Err("--budget-bytes requires a positive integer".to_string());
+    }
+    if !matches!(command, Command::Context)
+        && (context_profile != ContextProfile::Full || budget_bytes.is_some())
+    {
+        return Err("--profile and --budget-bytes are only valid for context".to_string());
+    }
     if !matches!(command, Command::Knowledge | Command::State) && record {
         return Err("--record is only valid for knowledge or state".to_string());
     }
@@ -250,6 +285,8 @@ where
         classification,
         freshness,
         limit,
+        context_profile,
+        budget_bytes,
     })
 }
 
@@ -453,7 +490,12 @@ fn intelligence_result(options: Options) -> CommandResult {
         Command::State => {
             intelligence::query(RecordKind::State, options.path.as_deref(), options.limit)
         }
-        Command::Context => intelligence::context(options.path.as_deref(), options.limit),
+        Command::Context => intelligence::context(
+            options.path.as_deref(),
+            options.limit,
+            options.context_profile,
+            options.budget_bytes,
+        ),
         _ => unreachable!("intelligence_result only handles intelligence commands"),
     };
     let mut envelope = if result.outcome == "success" || result.outcome == "plan_ready" {
@@ -489,17 +531,28 @@ fn intelligence_result(options: Options) -> CommandResult {
 
 fn usage() -> String {
     "usage: aos <version|inspect|validate|doctor|init|knowledge|state|context> [PATH] [--format human|json] [--quiet]\n\
-read-only commands: version, inspect, validate, doctor.\n\
-init plans by default; use --dry-run to make the non-mutating intent explicit.\n\
-init --apply requires --authority <REFERENCE> and performs transactional adoption.\n\
-knowledge and state list records; use --record --apply with provenance fields to add proposed revisions.\n\
-context selects authoritative active Knowledge and confirmed State deterministically."
+ read-only commands: version, inspect, validate, doctor.\n\
+ init plans by default; use --dry-run to make the non-mutating intent explicit.\n\
+ init --apply requires --authority <REFERENCE> and performs transactional adoption.\n\
+ knowledge and state list records; use --record --apply with provenance fields to add proposed revisions.\n\
+ context selects authoritative active Knowledge and confirmed State deterministically.\n\
+ context supports --profile full|compact and an optional --budget-bytes limit."
         .to_string()
+}
+
+fn parse_context_profile(value: &str) -> Result<ContextProfile, String> {
+    match value {
+        "full" => Ok(ContextProfile::Full),
+        "compact" => Ok(ContextProfile::Compact),
+        _ => Err(format!(
+            "unsupported context profile '{value}'; use full or compact"
+        )),
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Command, parse};
+    use super::{Command, ContextProfile, parse};
     use crate::model::OutputFormat;
 
     fn parse_args(arguments: &[&str]) -> super::Options {
@@ -515,6 +568,14 @@ mod tests {
             Some(".")
         );
         assert_eq!(options.format, OutputFormat::Json);
+    }
+
+    #[test]
+    fn parses_compact_context_budget() {
+        let options = parse_args(&["context", ".", "--profile=compact", "--budget-bytes=1024"]);
+        assert_eq!(options.command, Command::Context);
+        assert_eq!(options.context_profile, ContextProfile::Compact);
+        assert_eq!(options.budget_bytes, Some(1024));
     }
 
     #[test]

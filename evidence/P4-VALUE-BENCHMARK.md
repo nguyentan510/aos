@@ -32,6 +32,8 @@ only after an external consumer run has been completed.
   - transactional `.aos` initialization;
   - authoritative Knowledge/State fixture loading;
   - deterministic context selection;
+  - compact context projection;
+  - explicit byte-budget enforcement;
   - selected/withheld count and explicit withholding reasons.
 
 ## Measurement policy
@@ -78,9 +80,10 @@ structural marker: AOS_P4_VALUE_BENCHMARK_STRUCTURAL_OK
 agent status: PENDING
 ```
 
-The six scenarios produced the following provider-neutral size estimates:
+The six scenarios produced the following provider-neutral compact-profile size
+estimates under the default 900-byte budget:
 
-| Scenario | Baseline estimate | AOS context estimate | Structural reduction |
+| Scenario | Baseline estimate | AOS compact estimate | Structural reduction |
 | --- | ---: | ---: | ---: |
 | AOS onboarding | 6,272 | 498 | 92.06% |
 | AOS CLI bugfix | 12,482 | 493 | 96.05% |

@@ -16,6 +16,21 @@ pub enum RecordKind {
     State,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ContextProfile {
+    Full,
+    Compact,
+}
+
+impl ContextProfile {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Full => "full",
+            Self::Compact => "compact",
+        }
+    }
+}
+
 impl RecordKind {
     pub fn as_str(self) -> &'static str {
         match self {
@@ -69,9 +84,13 @@ pub struct QueryResult {
 #[derive(Debug)]
 struct StoredRecord {
     raw: String,
+    kind: RecordKind,
     id: String,
     revision: u64,
     subject: String,
+    source_reference: String,
+    content: Option<String>,
+    observed_value: Option<String>,
     authority: String,
     lifecycle: String,
     freshness: Option<String>,
@@ -157,7 +176,12 @@ pub fn query(kind: RecordKind, path: Option<&Path>, limit: usize) -> QueryResult
     }
 }
 
-pub fn context(path: Option<&Path>, limit: usize) -> QueryResult {
+pub fn context(
+    path: Option<&Path>,
+    limit: usize,
+    profile: ContextProfile,
+    budget_bytes: Option<usize>,
+) -> QueryResult {
     let inspection = match repository::inspect(path) {
         Ok(value) => value,
         Err(error) => {
@@ -219,6 +243,7 @@ pub fn context(path: Option<&Path>, limit: usize) -> QueryResult {
     }
 
     let mut selected = Vec::new();
+    let mut selected_bytes = 0usize;
     for record in latest_by_id.into_values() {
         let reason = if record.lifecycle != "active" {
             Some(format!("lifecycle_{}", record.lifecycle))
@@ -240,20 +265,40 @@ pub fn context(path: Option<&Path>, limit: usize) -> QueryResult {
                 escape_json(&record.subject),
                 escape_json(&reason),
             ));
-        } else if selected.len() < limit {
-            selected.push(record.raw);
-        } else {
+        } else if selected.len() >= limit {
             withheld.push(format!(
                 "{{\"id\":\"{}\",\"subject\":\"{}\",\"reason\":\"selection_limit\"}}",
                 escape_json(&record.id),
                 escape_json(&record.subject),
             ));
+        } else {
+            let projected = match profile {
+                ContextProfile::Full => record.raw,
+                ContextProfile::Compact => compact_record(&record),
+            };
+            let separator_bytes = if selected.is_empty() { 0 } else { 1 };
+            let projected_bytes = projected.len() + separator_bytes;
+            if budget_bytes.is_some_and(|budget| selected_bytes + projected_bytes > budget) {
+                withheld.push(format!(
+                    "{{\"id\":\"{}\",\"subject\":\"{}\",\"reason\":\"context_budget\"}}",
+                    escape_json(&record.id),
+                    escape_json(&record.subject),
+                ));
+            } else {
+                selected_bytes += projected_bytes;
+                selected.push(projected);
+            }
         }
     }
 
     let data = format!(
-        "{{\"policy\":\"authoritative-active-knowledge-and-confirmed-state\",\"limit\":{},\"selected\":[{}],\"withheld\":[{}]}}",
+        "{{\"policy\":\"authoritative-active-knowledge-and-confirmed-state\",\"profile\":\"{}\",\"limit\":{},\"budget_bytes\":{},\"selected_bytes\":{},\"selected\":[{}],\"withheld\":[{}]}}",
+        profile.as_str(),
         limit,
+        budget_bytes
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "null".to_string()),
+        selected_bytes,
         selected.join(","),
         withheld.join(","),
     );
@@ -607,8 +652,12 @@ fn read_records(root: &Path, kind: RecordKind) -> (Vec<StoredRecord>, Vec<Diagno
             }
             Some(StoredRecord {
                 id: extract_string(&raw, "id")?,
+                kind,
                 revision: extract_string(&raw, "revision")?.parse().ok()?,
                 subject: extract_string(&raw, "subject")?,
+                source_reference: extract_string(&raw, "source_reference")?,
+                content: extract_string(&raw, "content"),
+                observed_value: extract_string(&raw, "observed_value"),
                 authority: extract_string(&raw, "authority")?,
                 lifecycle: extract_string(&raw, "lifecycle")?,
                 freshness: extract_string(&raw, "freshness"),
@@ -627,6 +676,34 @@ fn read_records(root: &Path, kind: RecordKind) -> (Vec<StoredRecord>, Vec<Diagno
         }
     }
     (records, diagnostics)
+}
+
+fn compact_record(record: &StoredRecord) -> String {
+    let mut output = format!(
+        "{{\"kind\":\"{}\",\"id\":\"{}\",\"revision\":\"{}\",\"subject\":\"{}\",\"source_reference\":\"{}\",\"authority\":\"{}\",\"lifecycle\":\"{}\"",
+        record.kind.as_str(),
+        escape_json(&record.id),
+        record.revision,
+        escape_json(&record.subject),
+        escape_json(&record.source_reference),
+        escape_json(&record.authority),
+        escape_json(&record.lifecycle),
+    );
+    if let Some(freshness) = &record.freshness {
+        output.push_str(&format!(",\"freshness\":\"{}\"", escape_json(freshness)));
+    }
+    match record.kind {
+        RecordKind::Knowledge => output.push_str(&format!(
+            ",\"content\":\"{}\"",
+            escape_json(record.content.as_deref().unwrap_or(""))
+        )),
+        RecordKind::State => output.push_str(&format!(
+            ",\"observed_value\":\"{}\"",
+            escape_json(record.observed_value.as_deref().unwrap_or(""))
+        )),
+    }
+    output.push('}');
+    output
 }
 
 fn next_revision(root: &Path, kind: RecordKind, id: &str) -> u64 {

@@ -440,6 +440,45 @@ fn context_is_deterministic_and_explains_withheld_records() {
 }
 
 #[test]
+fn compact_context_preserves_provenance_and_enforces_budget() {
+    let repository = temp_repository("context-compact");
+    initialize_repository(&repository);
+    let knowledge = repository.join(".aos/knowledge");
+    fs::create_dir_all(&knowledge).expect("knowledge fixture directory should exist");
+    fs::write(
+        knowledge.join("architecture.r1.json"),
+        r#"{"kind":"Knowledge","id":"architecture","revision":"1","subject":"architecture","authority":"authoritative","lifecycle":"active","source_reference":"DESIGN.md","content":"modular"}"#,
+    )
+    .expect("compact knowledge fixture should be written");
+    fs::write(
+        knowledge.join("large.r1.json"),
+        format!(
+            r#"{{"kind":"Knowledge","id":"large","revision":"1","subject":"large","authority":"authoritative","lifecycle":"active","source_reference":"large.md","content":"{}"}}"#,
+            "x".repeat(800)
+        ),
+    )
+    .expect("large knowledge fixture should be written");
+
+    let output = run_aos(&[
+        "context",
+        repository.to_str().expect("temporary path should be UTF-8"),
+        "--limit=10",
+        "--profile=compact",
+        "--budget-bytes=300",
+        "--format=json",
+    ]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let body = stdout(&output);
+    assert!(body.contains("\"profile\":\"compact\""));
+    assert!(body.contains("\"budget_bytes\":300"));
+    assert!(body.contains("\"source_reference\":\"DESIGN.md\""));
+    assert!(!body.contains("\"project_id\":\"project-"));
+    assert!(body.contains("\"reason\":\"context_budget\""));
+
+    fs::remove_dir_all(repository).expect("temporary repository should be removable");
+}
+
+#[test]
 fn state_record_preserves_declared_freshness_and_remains_proposed() {
     let repository = temp_repository("state");
     initialize_repository(&repository);

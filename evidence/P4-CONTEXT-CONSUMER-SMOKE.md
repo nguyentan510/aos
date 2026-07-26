@@ -21,6 +21,7 @@ The smoke creates an isolated initialized repository, adds authoritative
 confirmed records plus proposed and stale records, and validates:
 
 - deterministic repeated output;
+- compact projection and an explicit byte budget;
 - selected records retain source references;
 - proposed and stale records are withheld;
 - every withheld record has a reason;

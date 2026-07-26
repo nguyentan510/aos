@@ -84,8 +84,8 @@ Write-Fixture -Root $root -Kind "State" -Id "selected-state" -Subject "selected 
 Write-Fixture -Root $root -Kind "Knowledge" -Id "withheld-proposal" -Subject "withheld proposal" -Source "notes.md" -Authority "proposed" -Lifecycle "active" -Freshness "" -Value "This record must be withheld."
 Write-Fixture -Root $root -Kind "State" -Id "withheld-stale" -Subject "withheld stale state" -Source "ci.log" -Authority "authoritative" -Lifecycle "active" -Freshness "stale" -Value "This record must be withheld."
 
-$first = Invoke-Aos @("context", $root, "--limit", "2", "--format", "json")
-$second = Invoke-Aos @("context", $root, "--limit", "2", "--format", "json")
+$first = Invoke-Aos @("context", $root, "--limit", "2", "--profile", "compact", "--budget-bytes", "900", "--format", "json")
+$second = Invoke-Aos @("context", $root, "--limit", "2", "--profile", "compact", "--budget-bytes", "900", "--format", "json")
 if ($first.ExitCode -ne 0 -or $second.ExitCode -ne 0) {
     Fail "context command failed"
 }
@@ -103,6 +103,12 @@ if ($envelope.outcome -ne "success") {
 }
 if ($envelope.data.policy -ne "authoritative-active-knowledge-and-confirmed-state") {
     Fail "unexpected context policy"
+}
+if ($envelope.data.profile -ne "compact" -or $envelope.data.budget_bytes -ne 900) {
+    Fail "compact profile or budget is missing from context output"
+}
+if ([int]$envelope.data.selected_bytes -gt 900) {
+    Fail "context budget was exceeded"
 }
 if (@($envelope.data.selected).Count -ne 2) {
     Fail "expected exactly two selected records under the limit"
@@ -125,6 +131,9 @@ $result = [ordered]@{
     run_id = $runId
     selected_count = @($envelope.data.selected).Count
     withheld_count = @($envelope.data.withheld).Count
+    profile = [string]$envelope.data.profile
+    budget_bytes = [int]$envelope.data.budget_bytes
+    selected_bytes = [int]$envelope.data.selected_bytes
     selected_source_references = @($envelope.data.selected | ForEach-Object { $_.source_reference })
     withheld_reasons = @($envelope.data.withheld | ForEach-Object { $_.reason })
     deterministic = $true

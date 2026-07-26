@@ -1,6 +1,8 @@
 {
   "schema_version": "AOS-P4-BENCHMARK-1",
   "description": "Provider-neutral P4 context value scenarios. Repository paths are resolved from environment variables.",
+  "default_context_profile": "compact",
+  "default_context_budget_bytes": 900,
   "scenarios": [
     {
       "id": "aos-onboarding-boundary",

@@ -121,7 +121,8 @@ P4 is complete. Its evidence is recorded in
 [P4 Knowledge and Context Review](evidence/P4-KNOWLEDGE-CONTEXT-REVIEW.md).
 Knowledge revisions use `.aos/knowledge/`, State revisions use `.aos/state/`,
 and `aos context` selects provider-independent context while explaining every
-withheld stale, unknown, proposed, non-active, or over-limit record.
+withheld stale, unknown, proposed, non-active, over-limit, or budget-excluded
+record. Consumers may request a compact profile and an explicit byte budget.
 
 Validate the complete design and standards governance with:
 
