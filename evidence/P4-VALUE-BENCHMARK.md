@@ -73,8 +73,8 @@ understanding, or task-success improvement.
 The first clean-snapshot run completed with:
 
 ```text
-run_id: p4-20260726T102755Z
-AOS commit: 672e9f97d1a9292fb07ce7225167b171170cc700
+run_id: p4-20260726T104150Z
+AOS commit: 01ba1f7
 TRENUX Rust commit: 3297389bd35ff3e8eb129dc74308ec3c8d165bf2
 structural marker: AOS_P4_VALUE_BENCHMARK_STRUCTURAL_OK
 agent status: PENDING
@@ -85,12 +85,12 @@ estimates under the default 900-byte budget:
 
 | Scenario | Baseline estimate | AOS compact estimate | Structural reduction |
 | --- | ---: | ---: | ---: |
-| AOS onboarding | 6,272 | 498 | 92.06% |
-| AOS CLI bugfix | 12,482 | 493 | 96.05% |
-| AOS feature | 19,649 | 529 | 97.31% |
-| TRENUX onboarding | 33,296 | 510 | 98.47% |
-| TRENUX boundary bugfix | 31,126 | 497 | 98.40% |
-| TRENUX feature | 32,418 | 496 | 98.47% |
+| AOS onboarding | 6,294 | 157 | 97.51% |
+| AOS CLI bugfix | 13,522 | 153 | 98.87% |
+| AOS feature | 20,982 | 190 | 99.09% |
+| TRENUX onboarding | 33,296 | 162 | 99.51% |
+| TRENUX boundary bugfix | 31,126 | 166 | 99.47% |
+| TRENUX feature | 32,418 | 168 | 99.48% |
 
 These numbers compare listed baseline-file bytes with a manually authored P4
 context fixture. They demonstrate that the envelope can be compact, but they

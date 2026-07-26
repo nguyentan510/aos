@@ -35,6 +35,14 @@ confirmed records plus proposed and stale records, and validates:
 AOS_CONTEXT_CONSUMER_SMOKE_OK
 ```
 
+Latest run:
+
+```text
+consumer-20260726T104214Z
+profile: compact
+budget_bytes: 900
+```
+
 ## Boundary
 
 This proves the provider-neutral JSON consumer contract only. It does not claim
