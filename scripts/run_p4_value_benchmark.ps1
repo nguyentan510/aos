@@ -138,8 +138,8 @@ function Invoke-Context([object]$Scenario, [string]$WorkRoot) {
     if ($null -eq $envelope.data.selected -or $null -eq $envelope.data.withheld) {
         Fail "context envelope is missing selected/withheld data for $($Scenario.id)"
     }
-    $selectedJson = ($envelope.data.selected | ConvertTo-Json -Compress)
-    $withheldJson = ($envelope.data.withheld | ConvertTo-Json -Compress)
+    $selectedJson = ConvertTo-Json -InputObject (,@($envelope.data.selected)) -Compress
+    $withheldJson = ConvertTo-Json -InputObject (,@($envelope.data.withheld)) -Compress
     $withheldWithReason = @($envelope.data.withheld | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.reason) }).Count
     [pscustomobject]@{
         SelectedCount = @($envelope.data.selected).Count
