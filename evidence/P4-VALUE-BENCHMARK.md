@@ -65,3 +65,31 @@ Without those files the runner emits only
 This evidence proves that the benchmark is executable and fail-closed about
 missing AI measurements. It does not yet prove token reduction, faster agent
 understanding, or task-success improvement.
+
+## Structural run
+
+The first clean-snapshot run completed with:
+
+```text
+run_id: p4-20260726T102755Z
+AOS commit: 672e9f97d1a9292fb07ce7225167b171170cc700
+TRENUX Rust commit: 3297389bd35ff3e8eb129dc74308ec3c8d165bf2
+structural marker: AOS_P4_VALUE_BENCHMARK_STRUCTURAL_OK
+agent status: PENDING
+```
+
+The six scenarios produced the following provider-neutral size estimates:
+
+| Scenario | Baseline estimate | AOS context estimate | Structural reduction |
+| --- | ---: | ---: | ---: |
+| AOS onboarding | 6,272 | 498 | 92.06% |
+| AOS CLI bugfix | 12,482 | 493 | 96.05% |
+| AOS feature | 19,649 | 529 | 97.31% |
+| TRENUX onboarding | 33,296 | 510 | 98.47% |
+| TRENUX boundary bugfix | 31,126 | 497 | 98.40% |
+| TRENUX feature | 32,418 | 496 | 98.47% |
+
+These numbers compare listed baseline-file bytes with a manually authored P4
+context fixture. They demonstrate that the envelope can be compact, but they
+must not be presented as model-token savings or task-success improvement until
+the same scenarios are executed by an external AI consumer.
