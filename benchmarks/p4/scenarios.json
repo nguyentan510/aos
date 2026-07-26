@@ -1,0 +1,231 @@
+{
+  "schema_version": "AOS-P4-BENCHMARK-1",
+  "description": "Provider-neutral P4 context value scenarios. Repository paths are resolved from environment variables.",
+  "scenarios": [
+    {
+      "id": "aos-onboarding-boundary",
+      "repository_env": "AOS_REPO",
+      "expected_commit": "HEAD",
+      "task_type": "onboarding",
+      "task": "Explain the AOS source/distribution/managed-project boundary and identify the canonical design documents.",
+      "baseline_files": [
+        "README.md",
+        "DESIGN.md",
+        "ROADMAP.md"
+      ],
+      "context_limit": 3,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "product-boundary",
+          "subject": "AOS product boundary",
+          "source_reference": "README.md",
+          "content": "AOS source repository produces a CLI/runtime distribution that manages a downstream .aos control root; the source repository is not itself a managed project."
+        },
+        {
+          "kind": "Knowledge",
+          "id": "canonical-design",
+          "subject": "canonical design documents",
+          "source_reference": "README.md",
+          "content": "VISION.md defines why AOS exists, PRINCIPLES.md defines constraints, DESIGN.md defines semantics and boundaries, and ROADMAP.md defines maturity gates."
+        },
+        {
+          "kind": "State",
+          "id": "current-maturity",
+          "subject": "current AOS maturity",
+          "source_reference": "ROADMAP.md",
+          "value": "P4 Knowledge and Context complete; P5 is the next eligible phase.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "aos-bugfix-contract",
+      "repository_env": "AOS_REPO",
+      "expected_commit": "HEAD",
+      "task_type": "bugfix",
+      "task": "A CLI change must preserve deterministic output and the read-only boundary. Identify the implementation and verification files.",
+      "baseline_files": [
+        "src/cli.rs",
+        "src/model.rs",
+        "tests/cli_smoke.rs"
+      ],
+      "context_limit": 3,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "cli-owner",
+          "subject": "CLI implementation ownership",
+          "source_reference": "src/cli.rs",
+          "content": "Command parsing, dispatch, output format selection, and command result rendering are owned by src/cli.rs."
+        },
+        {
+          "kind": "Knowledge",
+          "id": "cli-envelope",
+          "subject": "CLI output contract",
+          "source_reference": "src/model.rs",
+          "content": "The CLI uses a deterministic result envelope with command, outcome, diagnostics, evidence, data, plan, operation, and error fields."
+        },
+        {
+          "kind": "State",
+          "id": "cli-smoke-coverage",
+          "subject": "CLI verification",
+          "source_reference": "tests/cli_smoke.rs",
+          "value": "CLI smoke tests cover read-only behavior, init safety, Knowledge/State recording, and deterministic context filtering.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "aos-feature-test",
+      "repository_env": "AOS_REPO",
+      "expected_commit": "HEAD",
+      "task_type": "feature",
+      "task": "Add a small context-output behavior without weakening provenance or freshness guarantees. Identify the relevant contract, implementation, and test evidence.",
+      "baseline_files": [
+        "specifications/001-information-model.md",
+        "specifications/004-cli.md",
+        "src/intelligence.rs",
+        "tests/cli_smoke.rs"
+      ],
+      "context_limit": 4,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "information-model-invariant",
+          "subject": "Information Model invariant",
+          "source_reference": "specifications/001-information-model.md",
+          "content": "Authoritative objects require provenance and authority evidence; proposed objects must not be presented as current authoritative project truth."
+        },
+        {
+          "kind": "Knowledge",
+          "id": "context-policy",
+          "subject": "default context policy",
+          "source_reference": "specifications/001-information-model.md",
+          "content": "Default context selects active authoritative Knowledge and active authoritative State with confirmed freshness, and withholds other records with an explicit reason."
+        },
+        {
+          "kind": "State",
+          "id": "p4-implementation",
+          "subject": "P4 implementation status",
+          "source_reference": "src/intelligence.rs",
+          "value": "Knowledge and State revisions are immutable; context selection is provider-independent and deterministic.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-rust-data-boundary",
+      "repository_env": "TRENUX_RUST_REPO",
+      "expected_commit": "3297389bd35ff3e8eb129dc74308ec3c8d165bf2",
+      "task_type": "onboarding",
+      "task": "Explain where canonical implementation truth, source maps, and traceability evidence are documented in the TRENUX Rust workspace.",
+      "baseline_files": [
+        "README.md",
+        "docs/README.md",
+        "docs/IMPLEMENTATION_STATUS.md",
+        "docs/SOURCE_MAP.md"
+      ],
+      "context_limit": 4,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-doc-entrypoint",
+          "subject": "TRENUX Rust documentation entrypoint",
+          "source_reference": "docs/README.md",
+          "content": "The docs README is the canonical navigation entrypoint for layer ownership, contracts, implementation status, and evidence."
+        },
+        {
+          "kind": "Knowledge",
+          "id": "trenux-status-truth",
+          "subject": "TRENUX implementation status",
+          "source_reference": "docs/IMPLEMENTATION_STATUS.md",
+          "content": "Implementation status must distinguish contract-ready, implementation-aligned, runtime-smoke-ready, production-like-runtime-ready, and production-ready."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-source-map",
+          "subject": "TRENUX source map",
+          "source_reference": "docs/SOURCE_MAP.md",
+          "value": "Canonical source ownership and consumer relationships are documented in the source map.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-rust-boundary-bugfix",
+      "repository_env": "TRENUX_RUST_REPO",
+      "expected_commit": "3297389bd35ff3e8eb129dc74308ec3c8d165bf2",
+      "task_type": "bugfix",
+      "task": "A downstream consumer must not read unchecked Raw tables. Identify the boundary documentation and the likely verification surface.",
+      "baseline_files": [
+        "docs/TRACEABILITY_MATRIX.md",
+        "docs/SOURCE_MAP.md",
+        "docs/IMPLEMENTATION_STATUS.md"
+      ],
+      "context_limit": 3,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-canonical-boundary",
+          "subject": "TRENUX canonical boundary",
+          "source_reference": "docs/SOURCE_MAP.md",
+          "content": "Data owns validated canonical truth and downstream consumers must use committed evidence rather than bypassing the canonical boundary."
+        },
+        {
+          "kind": "Knowledge",
+          "id": "trenux-traceability",
+          "subject": "TRENUX traceability",
+          "source_reference": "docs/TRACEABILITY_MATRIX.md",
+          "content": "Traceability maps requirements to implementation owners, consumers, and verification evidence."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-runtime-readiness",
+          "subject": "TRENUX runtime readiness",
+          "source_reference": "docs/IMPLEMENTATION_STATUS.md",
+          "value": "Readiness labels must not be promoted without current runtime evidence.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-rust-feature",
+      "repository_env": "TRENUX_RUST_REPO",
+      "expected_commit": "3297389bd35ff3e8eb129dc74308ec3c8d165bf2",
+      "task_type": "feature",
+      "task": "Plan a narrow downstream consumer change while preserving the Data to Compute Core boundary and current readiness gates.",
+      "baseline_files": [
+        "docs/README.md",
+        "docs/SOURCE_MAP.md",
+        "docs/TRACEABILITY_MATRIX.md",
+        "docs/IMPLEMENTATION_STATUS.md"
+      ],
+      "context_limit": 4,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-layer-order",
+          "subject": "TRENUX layer order",
+          "source_reference": "docs/README.md",
+          "content": "Work follows the governed Data, Compute Core, Feature, Context, and downstream consumer boundaries."
+        },
+        {
+          "kind": "Knowledge",
+          "id": "trenux-change-scope",
+          "subject": "TRENUX dependency-safe change scope",
+          "source_reference": "docs/TRACEABILITY_MATRIX.md",
+          "content": "A bounded consumer slice is preferred over widening multiple layers before the upstream contract and runtime evidence are current."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-gate-discipline",
+          "subject": "TRENUX gate discipline",
+          "source_reference": "docs/IMPLEMENTATION_STATUS.md",
+          "value": "A documentation gate or isolated smoke does not prove production readiness.",
+          "freshness": "confirmed"
+        }
+      ]
+    }
+  ]
+}
