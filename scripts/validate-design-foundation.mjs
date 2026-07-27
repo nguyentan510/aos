@@ -1007,8 +1007,9 @@ if (p4Start < 0 || p5Start < 0 || p5Start <= p4Start) {
   if (!p5Section.includes("evidence/P5-GOVERNED-WORK-REVIEW.md")) {
     errors.push("ROADMAP.md: P5 implementation evidence link is missing");
   }
-  if (!p5Section.includes("30244142128") ||
-      !p5Section.includes("attempt 2")) {
+  if (!p5Section.includes("30246501837") ||
+      !p5Section.includes("30246618788") ||
+      !p5Section.includes("v0.1.0-rc.2")) {
     errors.push("ROADMAP.md: P5 closeout must record successful hosted CI evidence");
   }
 }
@@ -1052,8 +1053,9 @@ for (const command of ["aos knowledge", "aos state", "aos context"]) {
 const p5Review = readUtf8("evidence/P5-GOVERNED-WORK-REVIEW.md");
 if (!p5Review.includes("**Status:** COMPLETE") ||
     !p5Review.includes("P5 roadmap closeout:             PASS") ||
-    !p5Review.includes("GitHub Actions run: 30244142128") ||
-    !p5Review.includes("attempt: 2")) {
+    !p5Review.includes("closeout commit run: 30246501837 PASS") ||
+    !p5Review.includes("release workflow: 30246618788 PASS") ||
+    !p5Review.includes("AOS_RC2_CHECKSUMS_OK")) {
   errors.push("P5 review: successful hosted CI closeout truth is missing");
 }
 for (const marker of [

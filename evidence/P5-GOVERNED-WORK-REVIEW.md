@@ -101,23 +101,42 @@ design/specification/governance validators: PASS
 AOS_P5_HARDENING_OK: PASS
 controlled pilot: pilot-20260727T065102Z PASS
 release candidate: v0.1.0-rc.1 local-verified
-hosted CI: run 30244142128 attempt 2 PASS
+hosted CI qualification: run 30244142128 attempt 2 PASS
+closeout commit CI: run 30246501837 PASS
+CI-built release candidate: v0.1.0-rc.2 PASS
 ```
 
 Hosted CI evidence:
 
 ```text
-GitHub Actions run: 30244142128
-attempt: 2
-commit: be558069df10a4182be12252a1c95008bff4792e
-Windows job 89913650517: PASS
-Ubuntu job 89913650553: PASS
+qualification run: 30244142128 attempt 2 PASS
+qualification commit: be558069df10a4182be12252a1c95008bff4792e
+closeout commit run: 30246501837 PASS
+closeout commit: 33b7cf48e91f870751dba576c6a9e3bf5bbf3e98
+Windows job 89914662756: PASS
+Ubuntu job 89914663510: PASS
 Rust unit tests: 8/8 on Windows and Ubuntu
 CLI process tests: 30/30 on Windows and Ubuntu
 Windows P5 governed Work smoke: PASS
 Windows P5 hardening gate: PASS
 design/specification/governance validators: PASS on Windows and Ubuntu
 prior billing lock: RESOLVED
+```
+
+Release provenance:
+
+```text
+tag: v0.1.0-rc.2
+tag commit: 33b7cf48e91f870751dba576c6a9e3bf5bbf3e98
+release workflow: 30246618788 PASS
+Linux build job 89915019958: PASS
+Windows build job 89915020000: PASS
+publish job 89915231777: PASS
+artifact: aos-x86_64-pc-windows-msvc.zip
+sha256: 1f1c240c8cffe2cbce3b15687f9b7a7ae2d8d31e802307b69d4231e508740f60
+artifact: aos-x86_64-unknown-linux-gnu.tar.gz
+sha256: cf509fb40ff1926b30a4a6d94cdfbcc3a9f94f119ea6cb6ab812830efcd2505c
+checksum verification: AOS_RC2_CHECKSUMS_OK
 ```
 
 ## Maturity decision

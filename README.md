@@ -134,8 +134,10 @@ records immutable Work, Protocol, Governance, Run, and Audit data and exposes
 The P4 value benchmark, controlled downstream pilot, local CI-equivalent gates,
 and GitHub-hosted Windows and Ubuntu CI pass. P6 now focuses on versioned
 extension discovery, compatibility, capability isolation, and proof that
-extensions cannot bypass Governance. Production-like-runtime-ready and
-production-ready remain explicitly unclaimed.
+extensions cannot bypass Governance. The CI-built
+[`v0.1.0-rc.2`](https://github.com/nguyentan510/aos/releases/tag/v0.1.0-rc.2)
+prerelease contains Windows and Linux archives with published checksums.
+Production-like-runtime-ready and production-ready remain explicitly unclaimed.
 
 Validate the complete design and standards governance with:
 

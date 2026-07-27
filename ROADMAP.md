@@ -245,9 +245,10 @@ project authority.
 
 **Closeout:** Passed on 2026-07-27. Product-value, controlled-pilot, local
 format/test/build/clippy/validator gates, and P5 smoke/hardening gates pass.
-GitHub Actions run `30244142128` attempt 2 executed successfully on Windows and
-Ubuntu for commit `be558069df10a4182be12252a1c95008bff4792e`. P6 is now the
-active phase.
+GitHub Actions run `30246501837` executed successfully on Windows and Ubuntu
+for closeout commit `33b7cf48e91f870751dba576c6a9e3bf5bbf3e98`. Release workflow
+`30246618788` built and published `v0.1.0-rc.2` for Windows and Linux with
+verified checksums. P6 is now the active phase.
 
 ## P6 — Extension Ecosystem
 
