@@ -243,9 +243,12 @@ provenance or authority.
 AOS can coordinate governed work without allowing runtime or providers to bypass
 project authority.
 
-**Closeout status:** Deferred until the real AI-facing P4 benchmark emits
-`AOS_P4_VALUE_BENCHMARK_OK`. Implementation and local runtime smoke do not
-replace that product-value gate.
+**Closeout status:** Product-value and controlled-pilot gates pass. Closeout is
+deferred only until hosted CI can execute successfully; GitHub rejected both
+Windows and Ubuntu jobs before step execution because the account is locked by
+a billing issue. Local format, test, build, clippy, validators, P5 smoke, and
+hardening gates pass. P6 remains ineligible until this external CI gate is
+cleared and recorded.
 
 ## P6 — Extension Ecosystem
 

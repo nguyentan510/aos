@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P5 governed Work vertical slice implemented; phase closeout deferred
+**Status:** P5 value and controlled pilot pass; hosted CI closeout blocked
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -128,9 +128,13 @@ record. Consumers may request a compact profile and an explicit byte budget.
 The P5 vertical slice is implementation-aligned and runtime-smoke-ready. It
 records immutable Work, Protocol, Governance, Run, and Audit data and exposes
 `aos work create|authorize|run|reconcile|show`. Its evidence is recorded in
-[P5 Governed Work Review](evidence/P5-GOVERNED-WORK-REVIEW.md). P5 phase
-closeout remains deferred until the real AI-facing P4 value benchmark emits
-`AOS_P4_VALUE_BENCHMARK_OK`.
+[P5 Governed Work Review](evidence/P5-GOVERNED-WORK-REVIEW.md) and
+[P5 Controlled Downstream Pilot](evidence/P5-CONTROLLED-DOWNSTREAM-PILOT.md).
+P5 phase
+closeout remains deferred only because GitHub-hosted CI cannot start while the
+account has a billing lock. The P4 value benchmark and controlled downstream
+pilot pass; local CI-equivalent gates pass. `v0.1.0-rc.1` is a local-verified
+prerelease and is not claimed as CI-qualified or production-ready.
 
 Validate the complete design and standards governance with:
 

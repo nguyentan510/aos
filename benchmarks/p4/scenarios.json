@@ -121,28 +121,21 @@
         "src/intelligence.rs",
         "tests/cli_smoke.rs"
       ],
-      "context_limit": 4,
+      "context_limit": 2,
       "records": [
         {
           "kind": "Knowledge",
-          "id": "information-model-invariant",
-          "subject": "Information Model invariant",
-          "source_reference": "specifications/001-information-model.md",
-          "content": "Authoritative objects require provenance and authority evidence; proposed objects must not be presented as current authoritative project truth."
-        },
-        {
-          "kind": "Knowledge",
-          "id": "context-policy",
-          "subject": "default context policy",
-          "source_reference": "specifications/001-information-model.md",
-          "content": "Default context selects active authoritative Knowledge and active authoritative State with confirmed freshness, and withholds other records with an explicit reason."
+          "id": "cli-compact-context-contract",
+          "subject": "CLI compact context contract",
+          "source_reference": "specifications/004-cli.md",
+          "content": "The compact context requirements and conformance cases are owned by the CLI specification. Selected records retain provenance through source_reference, withheld records retain an explicit reason, and the byte budget is deterministic."
         },
         {
           "kind": "State",
-          "id": "p4-implementation",
-          "subject": "P4 implementation status",
-          "source_reference": "src/intelligence.rs",
-          "value": "Knowledge and State revisions are immutable; context selection is provider-independent and deterministic.",
+          "id": "contract-validator",
+          "subject": "AOS contract validator",
+          "source_reference": "scripts/validate-aos.mjs",
+          "value": "The canonical local verification command for specification changes is node scripts/validate-aos.mjs.",
           "freshness": "confirmed"
         }
       ]
@@ -168,28 +161,21 @@
         "docs/IMPLEMENTATION_STATUS.md",
         "docs/SOURCE_MAP.md"
       ],
-      "context_limit": 4,
+      "context_limit": 2,
       "records": [
         {
           "kind": "Knowledge",
-          "id": "trenux-doc-entrypoint",
-          "subject": "TRENUX Rust documentation entrypoint",
-          "source_reference": "docs/README.md",
-          "content": "The docs README is the canonical navigation entrypoint for layer ownership, contracts, implementation status, and evidence."
-        },
-        {
-          "kind": "Knowledge",
-          "id": "trenux-status-truth",
-          "subject": "TRENUX implementation status",
+          "id": "trenux-status-readiness-contract",
+          "subject": "TRENUX readiness status contract",
           "source_reference": "docs/IMPLEMENTATION_STATUS.md",
-          "content": "Implementation status must distinguish contract-ready, implementation-aligned, runtime-smoke-ready, production-like-runtime-ready, and production-ready."
+          "content": "Implementation status owns the readiness vocabulary and must not claim production-like-runtime-ready or production-ready without current runtime evidence."
         },
         {
           "kind": "State",
-          "id": "trenux-source-map",
-          "subject": "TRENUX source map",
-          "source_reference": "docs/SOURCE_MAP.md",
-          "value": "Canonical source ownership and consumer relationships are documented in the source map.",
+          "id": "trenux-status-target",
+          "subject": "TRENUX status change target",
+          "source_reference": "docs/IMPLEMENTATION_STATUS.md",
+          "value": "The requested readiness clarification is a documentation-only patch verified with git diff --check.",
           "freshness": "confirmed"
         }
       ]
@@ -214,28 +200,21 @@
         "docs/SOURCE_MAP.md",
         "docs/IMPLEMENTATION_STATUS.md"
       ],
-      "context_limit": 3,
+      "context_limit": 2,
       "records": [
         {
           "kind": "Knowledge",
           "id": "trenux-canonical-boundary",
           "subject": "TRENUX canonical boundary",
           "source_reference": "docs/SOURCE_MAP.md",
-          "content": "Data owns validated canonical truth and downstream consumers must use committed evidence rather than bypassing the canonical boundary."
-        },
-        {
-          "kind": "Knowledge",
-          "id": "trenux-traceability",
-          "subject": "TRENUX traceability",
-          "source_reference": "docs/TRACEABILITY_MATRIX.md",
-          "content": "Traceability maps requirements to implementation owners, consumers, and verification evidence."
+          "content": "docs/SOURCE_MAP.md owns the Data boundary: downstream consumers must use validated canonical Data truth and must not bypass it by reading unchecked Raw tables."
         },
         {
           "kind": "State",
-          "id": "trenux-runtime-readiness",
-          "subject": "TRENUX runtime readiness",
-          "source_reference": "docs/IMPLEMENTATION_STATUS.md",
-          "value": "Readiness labels must not be promoted without current runtime evidence.",
+          "id": "trenux-source-map-target",
+          "subject": "TRENUX source-map change target",
+          "source_reference": "docs/SOURCE_MAP.md",
+          "value": "The requested boundary clarification is a documentation-only patch verified with git diff --check.",
           "freshness": "confirmed"
         }
       ]
@@ -262,28 +241,21 @@
         "docs/TRACEABILITY_MATRIX.md",
         "docs/IMPLEMENTATION_STATUS.md"
       ],
-      "context_limit": 4,
+      "context_limit": 2,
       "records": [
         {
           "kind": "Knowledge",
-          "id": "trenux-layer-order",
-          "subject": "TRENUX layer order",
-          "source_reference": "docs/README.md",
-          "content": "Work follows the governed Data, Compute Core, Feature, Context, and downstream consumer boundaries."
-        },
-        {
-          "kind": "Knowledge",
-          "id": "trenux-change-scope",
-          "subject": "TRENUX dependency-safe change scope",
+          "id": "trenux-consumer-traceability-contract",
+          "subject": "TRENUX downstream consumer traceability",
           "source_reference": "docs/TRACEABILITY_MATRIX.md",
-          "content": "A bounded consumer slice is preferred over widening multiple layers before the upstream contract and runtime evidence are current."
+          "content": "docs/TRACEABILITY_MATRIX.md owns downstream consumer traceability. A promotable consumer change records its upstream contract reference, implementation owner, verification evidence, and current readiness status."
         },
         {
           "kind": "State",
-          "id": "trenux-gate-discipline",
-          "subject": "TRENUX gate discipline",
-          "source_reference": "docs/IMPLEMENTATION_STATUS.md",
-          "value": "A documentation gate or isolated smoke does not prove production readiness.",
+          "id": "trenux-traceability-target",
+          "subject": "TRENUX traceability change target",
+          "source_reference": "docs/TRACEABILITY_MATRIX.md",
+          "value": "The requested traceability note is a documentation-only patch verified with git diff --check.",
           "freshness": "confirmed"
         }
       ]

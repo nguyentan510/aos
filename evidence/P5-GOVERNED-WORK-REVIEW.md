@@ -1,7 +1,7 @@
 # P5 Governed Work Vertical Slice Review
 
-**Status:** IMPLEMENTATION PASS; PHASE CLOSEOUT DEFERRED
-**Date:** 2026-07-26
+**Status:** VALUE/PILOT PASS; HOSTED CI BLOCKED
+**Date:** 2026-07-27
 **Decision:** Local governed-work vertical slice is implementation-aligned and runtime-smoke-ready
 
 ## Review objective
@@ -16,13 +16,20 @@ and expose an end-to-end audit trace.
 - P4 contract, implementation, runtime smoke, and consumer smoke are present.
 - `AOS_CONTEXT_CONSUMER_SMOKE_OK` is present.
 - The provider-neutral structural benchmark is present.
-- The qualified patch-and-test suite completed two repeats for three AOS
-  scenarios with 35.10% aggregate token reduction and 100% task success, but
-  its 18.32% elapsed-time reduction remains below the 20% gate. The complete
-  suite therefore still emits `AOS_P4_VALUE_BENCHMARK_NOT_MET`.
+- The final AOS aggregate emits `AOS_P4_VALUE_BENCHMARK_OK` with 40.67% token
+  reduction, 29.56% elapsed-time reduction, 36.71% time-to-first-patch
+  reduction, and 6/6 success in both modes.
+- The fixed-snapshot TRENUX Rust aggregate emits
+  `AOS_P4_VALUE_BENCHMARK_OK` with 53.40% token reduction, 35.83% elapsed-time
+  reduction, 37.92% time-to-first-patch reduction, and 6/6 success in both
+  modes.
+- The controlled downstream pilot emits
+  `AOS_CONTROLLED_DOWNSTREAM_PILOT_OK`.
 
-The P5 implementation is therefore available and verified, but the roadmap
-phase must not be closed until the missing P4 product-value gate is satisfied.
+The P5 implementation, product-value gate, and downstream pilot are verified.
+Roadmap closeout remains deferred only because GitHub Actions rejected both
+hosted runners before executing any step with the annotation
+`account is locked due to a billing issue`. Local CI-equivalent gates pass.
 
 ## Implemented vertical slice
 
@@ -69,6 +76,7 @@ cargo clippy --all-targets -- -D warnings
 node scripts/validate-aos.mjs
 powershell -ExecutionPolicy Bypass -File scripts/run_p5_governed_work_smoke.ps1
 powershell -ExecutionPolicy Bypass -File scripts/run_p5_hardening_gate.ps1
+powershell -ExecutionPolicy Bypass -File scripts/run_controlled_downstream_pilot.ps1
 ```
 
 Expected markers:
@@ -78,17 +86,33 @@ AOS_P5_GOVERNED_WORK_CONTRACT_OK
 AOS_P5_GOVERNED_WORK_SMOKE_OK
 AOS_P5_GOVERNANCE_RECONCILIATION_OK
 AOS_P5_HARDENING_OK
+AOS_P4_VALUE_BENCHMARK_OK
+AOS_CONTROLLED_DOWNSTREAM_PILOT_OK
 ```
 
 Latest verified run:
 
 ```text
-run_id: p5-20260726T114504Z
+run_id: p5-20260727T065045Z
 Rust unit tests: 8 passed
 CLI process tests: 30 passed
 format/build/clippy: PASS
 design/specification/governance validators: PASS
 AOS_P5_HARDENING_OK: PASS
+controlled pilot: pilot-20260727T065102Z PASS
+release candidate: v0.1.0-rc.1 local-verified
+hosted CI: BLOCKED before execution by GitHub account billing lock
+```
+
+Hosted CI evidence:
+
+```text
+GitHub Actions run: 30238648767
+commit: 92a9f926fb75107515c449ba3f5af8934415e608
+Windows job: not started
+Ubuntu job: not started
+annotation: The job was not started because your account is locked due to a billing issue.
+prerelease: v0.1.0-rc.1 (local-verified, not CI-qualified)
 ```
 
 ## Maturity decision
@@ -99,5 +123,5 @@ Implementation-aligned:          PASS
 Runtime-smoke-ready:             PASS
 Production-like-runtime-ready:   NOT CLAIMED
 Production-ready:                NOT CLAIMED
-P5 roadmap closeout:             DEFERRED pending AOS_P4_VALUE_BENCHMARK_OK
+P5 roadmap closeout:             DEFERRED pending hosted CI execution
 ```

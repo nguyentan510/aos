@@ -155,11 +155,14 @@ function Invoke-CodexRun(
     [string]$RunRoot,
     [bool]$PatchMode
 ) {
+    $runStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $cloneStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     $agentRepositoryPath = $RepositoryPath
     if ($PatchMode) {
         $agentRepositoryPath = Join-Path $RunRoot ("agent-workspaces\{0}.{1}.r{2}" -f $Scenario.id, $Mode, $Repeat)
         Copy-CleanSnapshot -Source $SourceRepositoryPath -Target $agentRepositoryPath -Commit "HEAD" | Out-Null
     }
+    $cloneStopwatch.Stop()
     $modeInstruction = if ($Mode -eq "aos") {
         @"
 Use the following authoritative AOS context first. Open repository source only
@@ -221,6 +224,7 @@ source files actually used, and benchmark_result PASS.
     $sandbox = if ($PatchMode) { "workspace-write" } else { "read-only" }
     $promptPath = Join-Path $RunRoot "$($Scenario.id).$Mode.r$Repeat.prompt.txt"
     Write-Utf8NoBom -Path $promptPath -Content $prompt
+    $agentStartedAtUtc = [DateTime]::UtcNow
     $result = Invoke-NativeWithInput -File "npx.cmd" -Arguments @(
         "-y", $CodexPackage, "exec", "--json", "--model", $Model,
         "--sandbox", $sandbox, "--cd", $agentRepositoryPath,
@@ -264,6 +268,27 @@ source files actually used, and benchmark_result PASS.
             [string]$Scenario.verification_command
         ) -WorkingDirectory $agentRepositoryPath
     }
+    $firstPatchSeconds = $null
+    if ($PatchMode -and $changedFiles.Count -gt 0) {
+        $patchTimes = @(
+            $changedFiles |
+                ForEach-Object {
+                    $changedPath = Join-Path $agentRepositoryPath ([string]$_)
+                    if (Test-Path -LiteralPath $changedPath -PathType Leaf) {
+                        $writeTime = (Get-Item -LiteralPath $changedPath).LastWriteTimeUtc
+                        if ($writeTime -ge $agentStartedAtUtc) {
+                            ($writeTime - $agentStartedAtUtc).TotalSeconds
+                        }
+                    }
+                }
+        )
+        if ($patchTimes.Count -gt 0) {
+            $firstPatchSeconds = [Math]::Round(
+                [double](($patchTimes | Measure-Object -Minimum).Minimum),
+                3
+            )
+        }
+    }
     $expectedPatchFiles = @($Scenario.expected_patch_files)
     $patchFilesPresent = $PatchMode -and $expectedPatchFiles.Count -gt 0 -and @(
         $expectedPatchFiles |
@@ -293,6 +318,7 @@ source files actually used, and benchmark_result PASS.
         $Scenario.baseline_files |
             Where-Object { $eventText.IndexOf([string]$_, [StringComparison]::OrdinalIgnoreCase) -ge 0 }
     )
+    $runStopwatch.Stop()
     [pscustomobject]@{
         scenario_id = [string]$Scenario.id
         mode = $Mode
@@ -307,6 +333,13 @@ source files actually used, and benchmark_result PASS.
         output_tokens = if ($completed) { [int64]$completed.usage.output_tokens } else { 0 }
         reasoning_output_tokens = if ($completed) { [int64]$completed.usage.reasoning_output_tokens } else { 0 }
         elapsed_seconds = $result.ElapsedSeconds
+        timing = [ordered]@{
+            clone_seconds = [Math]::Round($cloneStopwatch.Elapsed.TotalSeconds, 3)
+            agent_seconds = $result.ElapsedSeconds
+            time_to_first_patch_seconds = $firstPatchSeconds
+            verification_seconds = if ($verification) { $verification.ElapsedSeconds } else { 0 }
+            runner_total_seconds = [Math]::Round($runStopwatch.Elapsed.TotalSeconds, 3)
+        }
         files_read = @($filesRead)
         files_read_count = @($filesRead).Count
         expected_terms = $terms
@@ -387,6 +420,7 @@ $env:AOS_REPO = Join-Path $snapshotRoot "aos"
 $env:TRENUX_RUST_REPO = Join-Path $snapshotRoot "trenux-rust"
 
 try {
+    $structuralStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     $structural = Invoke-Native -File "powershell.exe" -Arguments @(
         "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
         (Join-Path $scriptRoot "run_p4_value_benchmark.ps1"),
@@ -394,6 +428,7 @@ try {
         "-OutputDir", $structuralRoot,
         "-AosBinary", $AosBinary
     ) -WorkingDirectory $scriptRoot
+    $structuralStopwatch.Stop()
     if ($structural.ExitCode -ne 0) {
         Fail "structural benchmark failed: $($structural.Stdout) $($structural.Stderr)"
     }
@@ -408,13 +443,20 @@ try {
     }
     $fixtureRoot = Split-Path -Parent $structuralResultPath
     $allRuns = @()
+    $scenarioTimings = @()
     foreach ($scenario in $selectedScenarios) {
         $repositoryPath = if ([string]$scenario.repository_env -eq "AOS_REPO") {
             $env:AOS_REPO
         } else {
             $env:TRENUX_RUST_REPO
         }
+        $contextStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         $contextEnvelope = Invoke-AosContext -FixtureRoot (Join-Path $fixtureRoot $scenario.id) -Scenario $scenario -Manifest $manifest
+        $contextStopwatch.Stop()
+        $scenarioTimings += [pscustomobject]@{
+            scenario_id = [string]$scenario.id
+            context_generation_seconds = [Math]::Round($contextStopwatch.Elapsed.TotalSeconds, 3)
+        }
         $contextJson = $contextEnvelope.data | ConvertTo-Json -Depth 8 -Compress
         for ($repeat = 1; $repeat -le $Repeats; $repeat++) {
             $patchMode = [string]$manifest.qualification_level -eq "patch-and-test"
@@ -433,6 +475,31 @@ $baselineTokens = [double](($baselineRuns | Measure-Object -Property input_token
 $aosTokens = [double](($aosRuns | Measure-Object -Property input_tokens -Sum).Sum)
 $baselineTime = [double](($baselineRuns | Measure-Object -Property elapsed_seconds -Sum).Sum)
 $aosTime = [double](($aosRuns | Measure-Object -Property elapsed_seconds -Sum).Sum)
+$baselineFirstPatch = [double]((
+    $baselineRuns |
+        ForEach-Object { $_.timing.time_to_first_patch_seconds } |
+        Where-Object { $null -ne $_ } |
+        Measure-Object -Sum
+).Sum)
+$aosFirstPatch = [double]((
+    $aosRuns |
+        ForEach-Object { $_.timing.time_to_first_patch_seconds } |
+        Where-Object { $null -ne $_ } |
+        Measure-Object -Sum
+).Sum)
+$baselineVerification = [double]((
+    $baselineRuns |
+        ForEach-Object { $_.timing.verification_seconds } |
+        Measure-Object -Sum
+).Sum)
+$aosVerification = [double]((
+    $aosRuns |
+        ForEach-Object { $_.timing.verification_seconds } |
+        Measure-Object -Sum
+).Sum)
+$firstPatchReduction = if ($baselineFirstPatch -gt 0) {
+    100 * (1 - ($aosFirstPatch / $baselineFirstPatch))
+} else { 0 }
 $baselineSuccess = if ($baselineRuns.Count -gt 0) {
     100 * @($baselineRuns | Where-Object { $_.task_success }).Count / $baselineRuns.Count
 } else { 0 }
@@ -493,6 +560,12 @@ $result = [ordered]@{
         baseline_elapsed_seconds = [Math]::Round($baselineTime, 3)
         aos_elapsed_seconds = [Math]::Round($aosTime, 3)
         time_reduction_percent = [Math]::Round($timeReduction, 2)
+        baseline_time_to_first_patch_seconds = [Math]::Round($baselineFirstPatch, 3)
+        aos_time_to_first_patch_seconds = [Math]::Round($aosFirstPatch, 3)
+        time_to_first_patch_reduction_percent = [Math]::Round($firstPatchReduction, 2)
+        baseline_verification_seconds = [Math]::Round($baselineVerification, 3)
+        aos_verification_seconds = [Math]::Round($aosVerification, 3)
+        structural_harness_seconds = [Math]::Round($structuralStopwatch.Elapsed.TotalSeconds, 3)
         baseline_task_success_percent = [Math]::Round($baselineSuccess, 2)
         aos_task_success_percent = [Math]::Round($aosSuccess, 2)
     }
@@ -502,6 +575,7 @@ $result = [ordered]@{
     status = if ($allPass) { "PASS" } else { "FAIL" }
     pass_marker = $marker
     structural_result = $structuralResultPath
+    scenario_timings = $scenarioTimings
     runs = $allRuns
 }
 $resultPath = Join-Path $runRoot "ai-facing-results.json"
@@ -512,6 +586,7 @@ Write-Output "Model: $Model"
 Write-Output "Repeats: $Repeats"
 Write-Output "Token reduction: $([Math]::Round($tokenReduction, 2))%"
 Write-Output "Time reduction: $([Math]::Round($timeReduction, 2))%"
+Write-Output "Time-to-first-patch reduction: $([Math]::Round($firstPatchReduction, 2))%"
 Write-Output "Baseline success: $([Math]::Round($baselineSuccess, 2))%"
 Write-Output "AOS success: $([Math]::Round($aosSuccess, 2))%"
 Write-Output "Result: $resultPath"
