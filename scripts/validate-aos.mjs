@@ -9,6 +9,7 @@ const validators = [
   "validate-p6-extension-ecosystem.mjs",
   "validate-extension-authoring-kit.mjs",
   "validate-p6-2-production-like-qualification.mjs",
+  "validate-p6-3-installation-dx.mjs",
 ];
 
 for (const validator of validators) {

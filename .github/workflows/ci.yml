@@ -70,3 +70,13 @@ jobs:
       - name: P6.2 installed-pilot harness smoke
         shell: pwsh
         run: ./scripts/run_p6_2_installed_pilot_sample.ps1 -RepositoryPath $PWD -SamplesPerRun 1 -MinimumDurationDays 0 -MinimumSamples 1 -PilotId ci-harness-smoke
+
+      - name: P6.3 Windows offline installer smoke
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: .\scripts\run_p6_3_windows_installer_smoke.ps1
+
+      - name: P6.3 Linux offline installer smoke
+        if: runner.os == 'Linux'
+        shell: bash
+        run: sh ./scripts/run_p6_3_linux_installer_smoke.sh

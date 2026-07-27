@@ -72,3 +72,4 @@ documents and specifications in the same change.
 | [ADR-0008](0008-p4-knowledge-state-context-binding.md) | Accepted | P4 stores immutable Knowledge/State revisions and selects context deterministically |
 | [ADR-0009](0009-p5-governed-work-vertical-slice.md) | Accepted | P5 binds governed Work to immutable context, Protocol, verification, and reconciliation |
 | [ADR-0010](0010-p6-governed-declarative-extension-ecosystem.md) | Accepted | P6 binds declarative extensions to governed Work, allowlisted host operations, exact scope, and immutable provenance |
+| [ADR-0011](0011-p6-3-one-command-installation-and-setup.md) | Accepted | P6.3 adds governed one-command setup and checksum-verified distribution installers while isolating the active P6.2 evidence lane |

@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -79,16 +81,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
+      - name: Add installers
+        shell: bash
+        run: |
+          cp install.ps1 install.sh dist/
+
       - name: Generate checksums
         shell: bash
         run: |
           cd dist
-          sha256sum * > SHA256SUMS
+          sha256sum aos-* install.ps1 install.sh > SHA256SUMS
+
+      - name: Attest release assets
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/*
 
       - name: Create GitHub prerelease
         env:
@@ -100,3 +114,72 @@ jobs:
             --title "AOS ${GITHUB_REF_NAME}" \
             --prerelease \
             --generate-notes
+
+  release-smoke:
+    name: Hosted install smoke (${{ matrix.os }})
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            archive: aos-x86_64-pc-windows-msvc.zip
+          - os: ubuntu-latest
+            archive: aos-x86_64-unknown-linux-gnu.tar.gz
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download published RC assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          mkdir -p dist
+          gh release download "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --dir dist \
+            --pattern "${{ matrix.archive }}" \
+            --pattern "SHA256SUMS"
+
+      - name: Windows one-line equivalent smoke
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $project = Join-Path $env:RUNNER_TEMP "aos-project"
+          $install = Join-Path $env:RUNNER_TEMP "aos-install"
+          New-Item -ItemType Directory -Path $project | Out-Null
+          .\install.ps1 -Version $env:GITHUB_REF_NAME -ProjectPath $project -Yes `
+            -InstallRoot $install -NoPathUpdate `
+            -ArchivePath "dist\${{ matrix.archive }}" -ChecksumPath "dist\SHA256SUMS"
+          & "$install\bin\aos.exe" doctor $project --format=json
+          .\scripts\run_p6_extension_ecosystem_smoke.ps1 `
+            -AosBinary "$install\bin\aos.exe" `
+            -OutputDir (Join-Path $env:RUNNER_TEMP "aos-extension-smoke")
+          .\install.ps1 -Uninstall -Yes -InstallRoot $install -NoPathUpdate
+          if (-not (Test-Path "$project\.aos\repository.json")) {
+            throw "uninstall removed downstream .aos"
+          }
+
+      - name: Linux one-line equivalent smoke
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          export HOME="$RUNNER_TEMP/aos-home"
+          mkdir -p "$HOME" "$RUNNER_TEMP/aos-project"
+          sh ./install.sh \
+            --version "$GITHUB_REF_NAME" \
+            --project-path "$RUNNER_TEMP/aos-project" \
+            --yes \
+            --install-root "$RUNNER_TEMP/aos-install" \
+            --no-path-update \
+            --archive-path "dist/${{ matrix.archive }}" \
+            --checksum-path "dist/SHA256SUMS"
+          "$HOME/.local/bin/aos" doctor "$RUNNER_TEMP/aos-project" --format=json
+          pwsh ./scripts/run_p6_extension_ecosystem_smoke.ps1 \
+            -AosBinary "$HOME/.local/bin/aos" \
+            -OutputDir "$RUNNER_TEMP/aos-extension-smoke"
+          sh ./install.sh --uninstall --yes \
+            --install-root "$RUNNER_TEMP/aos-install" --no-path-update
+          test -f "$RUNNER_TEMP/aos-project/.aos/repository.json"

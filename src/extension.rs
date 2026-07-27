@@ -289,6 +289,48 @@ fn enable(summary: &RepositorySummary, root: &Path, input: ExtensionInput) -> Qu
         Ok(value) => value,
         Err(error) => return extension_failure(summary, error),
     };
+    enable_bundle(
+        summary,
+        root,
+        bundle,
+        input.apply,
+        input.authority.as_deref(),
+        input.evidence.as_deref(),
+    )
+}
+
+pub fn enable_bundled(
+    root: &Path,
+    manifest_json: &str,
+    principal: &str,
+    evidence: &str,
+) -> QueryResult {
+    let (summary, canonical_root) = match repository_context(Some(root)) {
+        Ok(value) => value,
+        Err(result) => return result,
+    };
+    let bundle = match load_manifest_text(manifest_json) {
+        Ok(value) => value,
+        Err(error) => return extension_failure(&summary, error),
+    };
+    enable_bundle(
+        &summary,
+        &canonical_root,
+        bundle,
+        true,
+        Some(principal),
+        Some(evidence),
+    )
+}
+
+fn enable_bundle(
+    summary: &RepositorySummary,
+    root: &Path,
+    bundle: ManifestBundle,
+    apply: bool,
+    principal: Option<&str>,
+    evidence: Option<&str>,
+) -> QueryResult {
     if let Err(error) = validate_bundle(root, &bundle) {
         return extension_failure(summary, error);
     }
@@ -298,14 +340,14 @@ fn enable(summary: &RepositorySummary, root: &Path, input: ExtensionInput) -> Qu
         bundle.manifest.id,
         next_lifecycle_revision(root, &bundle.manifest.id)
     );
-    if !input.apply {
+    if !apply {
         return plan_result(
             summary,
             ExtensionAction::Enable,
             vec![manifest_relative, lifecycle_relative],
         );
     }
-    let (principal, evidence) = match mutation_authority(&input) {
+    let (principal, evidence) = match mutation_authority_refs(principal, evidence) {
         Ok(value) => value,
         Err(error) => return extension_failure(summary, error),
     };
@@ -1052,7 +1094,19 @@ fn load_manifest_file(path: &Path) -> Result<ManifestBundle, ExtensionError> {
             4,
         )
     })?;
-    let manifest: ExtensionManifest = serde_json::from_str(&raw).map_err(|parse_error| {
+    load_manifest_text(&raw)
+}
+
+fn load_manifest_text(raw: &str) -> Result<ManifestBundle, ExtensionError> {
+    if raw.len() as u64 > MAX_MANIFEST_BYTES {
+        return Err(error(
+            "AOS-EXTENSION-MANIFEST-TOO-LARGE",
+            "extension manifest exceeds the 256 KiB contract limit",
+            "extension:resource-limit",
+            4,
+        ));
+    }
+    let manifest: ExtensionManifest = serde_json::from_str(raw).map_err(|parse_error| {
         error(
             "AOS-EXTENSION-MANIFEST-INVALID",
             parse_error.to_string(),
@@ -1617,7 +1671,14 @@ fn repository_context(path: Option<&Path>) -> Result<(RepositorySummary, PathBuf
 }
 
 fn mutation_authority(input: &ExtensionInput) -> Result<(&str, &str), ExtensionError> {
-    let principal = required(input.authority.as_deref(), "authority")?;
+    mutation_authority_refs(input.authority.as_deref(), input.evidence.as_deref())
+}
+
+fn mutation_authority_refs<'a>(
+    principal: Option<&'a str>,
+    evidence: Option<&'a str>,
+) -> Result<(&'a str, &'a str), ExtensionError> {
+    let principal = required(principal, "authority")?;
     if is_self_authority(principal) {
         return Err(error(
             "AOS-GOVERNANCE-SELF-AUTHORITY-DENIED",
@@ -1626,7 +1687,7 @@ fn mutation_authority(input: &ExtensionInput) -> Result<(&str, &str), ExtensionE
             7,
         ));
     }
-    let evidence = required(input.evidence.as_deref(), "evidence")?;
+    let evidence = required(evidence, "evidence")?;
     if contains_sensitive_reference(evidence) {
         return Err(error(
             "AOS-EXTENSION-SENSITIVE-EVIDENCE",

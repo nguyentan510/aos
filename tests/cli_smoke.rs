@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use sha2::{Digest, Sha256};
+
 fn temp_repository(label: &str) -> PathBuf {
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -376,6 +378,198 @@ fn init_rejects_unknown_control_root_without_overwrite() {
     let body = stdout(&output);
     assert!(body.contains("\"category\":\"ownership_conflict\""));
     assert!(body.contains("AOS-INIT-CONTROL-ROOT-CONFLICT"));
+    assert_eq!(
+        fs::read(control_root.join("user-file.txt")).expect("user artifact should remain"),
+        b"preserve me"
+    );
+
+    fs::remove_dir_all(repository).expect("temporary repository should be removable");
+}
+
+#[test]
+fn setup_plan_is_read_only_and_exposes_bundled_selection() {
+    let repository = temp_repository("setup-plan");
+    let output = run_aos(&[
+        "setup",
+        repository.to_str().expect("temporary path should be UTF-8"),
+        "--dry-run",
+        "--authority=local-test",
+        "--format=json",
+    ]);
+
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let body = stdout(&output);
+    assert!(body.contains("\"command\":\"setup\""));
+    assert!(body.contains("\"outcome\":\"plan_ready\""));
+    assert!(body.contains("aos.reference.repository@1.0.0"));
+    assert!(!body.contains("aos.reference.rust@1.0.0"));
+    assert_no_control_directory(&repository);
+
+    fs::remove_dir_all(repository).expect("temporary repository should be removable");
+}
+
+#[test]
+fn setup_yes_initializes_generic_repository_and_is_idempotent() {
+    let repository = temp_repository("setup-generic");
+    let repository_string = repository.to_str().expect("temporary path should be UTF-8");
+    let output = run_aos(&[
+        "setup",
+        repository_string,
+        "--yes",
+        "--authority=local-test",
+        "--format=json",
+    ]);
+
+    assert!(
+        output.status.success(),
+        "stderr: {}\nstdout: {}",
+        stderr(&output),
+        stdout(&output)
+    );
+    let body = stdout(&output);
+    assert!(body.contains("AOS-SETUP-COMPLETE"));
+    assert!(body.contains("\"principal_ref\":\"local-test\""));
+    assert!(body.contains("aos.reference.repository@1.0.0"));
+    assert!(
+        repository
+            .join(".aos/extensions/manifests/aos.reference.repository@1.0.0.json")
+            .is_file()
+    );
+    let bundled_snapshot = fs::read_to_string(
+        repository.join(".aos/extensions/manifests/aos.reference.repository@1.0.0.json"),
+    )
+    .expect("bundled manifest snapshot should be readable");
+    let packaged_manifest = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("extensions/reference/aos.reference.repository/extension.json"),
+    )
+    .expect("packaged reference manifest should be readable");
+    let bundled_value: serde_json::Value =
+        serde_json::from_str(&bundled_snapshot).expect("snapshot should be valid JSON");
+    let packaged_value: serde_json::Value =
+        serde_json::from_str(&packaged_manifest).expect("package should be valid JSON");
+    assert_eq!(
+        bundled_value, packaged_value,
+        "embedded and packaged reference manifests must be identical"
+    );
+    let digest = format!("{:x}", Sha256::digest(bundled_snapshot.as_bytes()));
+    assert!(
+        body.contains(&digest),
+        "setup output must bind the stored manifest digest"
+    );
+    assert!(!repository.join(".git").exists());
+    assert!(!repository.join(".aos/knowledge").exists());
+    assert!(!repository.join(".aos/work").exists());
+    assert!(!repository.join("extension-fixtures").exists());
+
+    let before = fs::read_dir(repository.join(".aos/audit"))
+        .expect("audit should exist")
+        .count();
+    let repeat = run_aos(&[
+        "setup",
+        repository_string,
+        "--yes",
+        "--authority=local-test",
+        "--format=json",
+    ]);
+    assert!(repeat.status.success(), "stderr: {}", stderr(&repeat));
+    assert!(stdout(&repeat).contains("AOS-SETUP-ALREADY-COMPLETE"));
+    let after = fs::read_dir(repository.join(".aos/audit"))
+        .expect("audit should remain")
+        .count();
+    assert_eq!(before, after, "idempotent setup must not append audit");
+
+    fs::remove_dir_all(repository).expect("temporary repository should be removable");
+}
+
+#[test]
+fn setup_detects_regular_root_cargo_manifest_and_enables_rust() {
+    let repository = temp_repository("setup-rust");
+    fs::write(
+        repository.join("Cargo.toml"),
+        "[package]\nname = \"setup-probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("Cargo.toml should be created");
+    let output = run_aos(&[
+        "setup",
+        repository.to_str().expect("temporary path should be UTF-8"),
+        "--yes",
+        "--authority=local-test",
+        "--format=json",
+    ]);
+
+    assert!(
+        output.status.success(),
+        "stderr: {}\nstdout: {}",
+        stderr(&output),
+        stdout(&output)
+    );
+    let body = stdout(&output);
+    assert!(body.contains("\"detected_project_types\":[\"generic\",\"rust\"]"));
+    assert!(body.contains("aos.reference.rust@1.0.0"));
+    assert!(
+        repository
+            .join(".aos/extensions/manifests/aos.reference.rust@1.0.0.json")
+            .is_file()
+    );
+    assert_eq!(
+        fs::read_to_string(repository.join("Cargo.toml"))
+            .expect("Cargo.toml should remain readable"),
+        "[package]\nname = \"setup-probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n"
+    );
+
+    fs::remove_dir_all(repository).expect("temporary repository should be removable");
+}
+
+#[test]
+#[cfg(unix)]
+fn setup_does_not_follow_symlinked_cargo_manifest() {
+    use std::os::unix::fs::symlink;
+
+    let repository = temp_repository("setup-rust-symlink");
+    let external = temp_repository("setup-rust-external");
+    fs::write(
+        external.join("Cargo.toml"),
+        "[package]\nname = \"outside\"\nversion = \"0.1.0\"\n",
+    )
+    .expect("external Cargo.toml should be created");
+    symlink(external.join("Cargo.toml"), repository.join("Cargo.toml"))
+        .expect("test symlink should be created");
+
+    let output = run_aos(&[
+        "setup",
+        repository.to_str().expect("temporary path should be UTF-8"),
+        "--dry-run",
+        "--authority=local-test",
+        "--format=json",
+    ]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let body = stdout(&output);
+    assert!(body.contains("\"detected_project_types\":[\"generic\"]"));
+    assert!(!body.contains("aos.reference.rust@1.0.0"));
+    assert_no_control_directory(&repository);
+
+    fs::remove_dir_all(repository).expect("temporary repository should be removable");
+    fs::remove_dir_all(external).expect("external repository should be removable");
+}
+
+#[test]
+fn setup_preserves_unknown_control_root() {
+    let repository = temp_repository("setup-conflict");
+    let control_root = repository.join(".aos");
+    fs::create_dir(&control_root).expect("unknown control root should be created");
+    fs::write(control_root.join("user-file.txt"), b"preserve me")
+        .expect("user artifact should be created");
+
+    let output = run_aos(&[
+        "setup",
+        repository.to_str().expect("temporary path should be UTF-8"),
+        "--yes",
+        "--authority=local-test",
+        "--format=json",
+    ]);
+    assert_eq!(output.status.code(), Some(5), "stderr: {}", stderr(&output));
+    assert!(stdout(&output).contains("AOS-INIT-CONTROL-ROOT-CONFLICT"));
     assert_eq!(
         fs::read(control_root.join("user-file.txt")).expect("user artifact should remain"),
         b"preserve me"

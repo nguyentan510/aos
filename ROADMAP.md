@@ -1,7 +1,7 @@
 # AOS Roadmap
 
 **Status:** Canonical delivery sequence
-**Current maturity:** P6 complete; P6.2 production-like qualification is active
+**Current maturity:** P6 complete; P6.2 qualification and isolated P6.3 installation work are active
 **Next eligible phase:** P7 only after qualification evidence and a measured scale need
 **Maturity model:** Evidence-gated capabilities, not promised release dates
 
@@ -321,6 +321,35 @@ Evidence is recorded in
 
 P7 remains ineligible without both completed qualification evidence and a
 measured performance, availability, or coordination bottleneck.
+
+### P6.3 one-command installation and developer experience
+
+**Status:** `ACTIVE`
+
+ADR-0011 authorizes this follow-on in an isolated lane while the official P6.2
+qualification continues against pinned binary, manifest, harness, and commit
+hashes outside the source repository. This is the accepted exception to the
+single-active-phase rule. It permits independent installation/DX work but does
+not advance elapsed time or change the production-like claim.
+
+P6.3 adds:
+
+- `aos setup [PATH]` with one plan and confirmation;
+- embedded Generic Repository and Rust reference manifests;
+- deterministic root-level Rust detection;
+- Windows PowerShell and Linux shell installers;
+- exact SHA-256, staged extraction, versioned provenance, upgrade/rollback,
+  and owned uninstall behavior;
+- offline Windows/Linux CI gates; and
+- RC4 hosted installation and governed-extension release smoke.
+
+Local contract, setup process tests, and Windows offline installer smoke pass.
+Linux offline and published RC4 hosted smokes remain required before closeout.
+Evidence is recorded in
+[`P6.3 Installation and Developer Experience`](evidence/P6.3-INSTALLATION-DEVELOPER-EXPERIENCE.md).
+
+P6.3 does not add package-manager distribution, network behavior to Core,
+arbitrary plugin execution, or any P7 scaling capability.
 
 ## P7 — Scale and Distributed Runtime
 

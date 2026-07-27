@@ -2,7 +2,9 @@ use crate::extension::{self, ExtensionAction, ExtensionInput};
 use crate::intelligence::{self, ContextProfile, RecordInput, RecordKind};
 use crate::model::{CLI_CONTRACT_VERSION, CLI_VERSION, Diagnostic, OutputFormat, ResultEnvelope};
 use crate::repository;
+use crate::setup::{self, SetupInput};
 use crate::work::{self, WorkAction, WorkInput};
+use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -12,6 +14,7 @@ pub enum Command {
     Validate,
     Doctor,
     Init,
+    Setup,
     Knowledge,
     State,
     Context,
@@ -28,6 +31,7 @@ impl Command {
             Self::Validate => "validate",
             Self::Doctor => "doctor",
             Self::Init => "init",
+            Self::Setup => "setup",
             Self::Knowledge => "knowledge",
             Self::State => "state",
             Self::Context => "context",
@@ -46,6 +50,7 @@ pub struct Options {
     pub quiet: bool,
     pub dry_run: bool,
     pub apply: bool,
+    pub yes: bool,
     pub authority: Option<String>,
     pub record: bool,
     pub id: Option<String>,
@@ -106,6 +111,7 @@ where
     let mut quiet = false;
     let mut dry_run = false;
     let mut apply = false;
+    let mut yes = false;
     let mut authority = None;
     let mut record = false;
     let mut id = None;
@@ -151,6 +157,7 @@ where
                     quiet,
                     dry_run,
                     apply,
+                    yes,
                     authority,
                     record,
                     id,
@@ -188,6 +195,7 @@ where
             "--quiet" => quiet = true,
             "--dry-run" => dry_run = true,
             "--apply" => apply = true,
+            "--yes" => yes = true,
             "--record" => record = true,
             "--id" => id = Some(next_value(&mut iterator, "--id")?),
             value if value.starts_with("--id=") => id = Some(value[5..].to_string()),
@@ -376,7 +384,12 @@ where
     let command = command.unwrap_or(Command::Help);
     if !matches!(
         command,
-        Command::Init | Command::Knowledge | Command::State | Command::Work | Command::Extension
+        Command::Init
+            | Command::Setup
+            | Command::Knowledge
+            | Command::State
+            | Command::Work
+            | Command::Extension
     ) && (dry_run || apply)
     {
         return Err("--dry-run and --apply are only valid for mutating commands".to_string());
@@ -384,9 +397,23 @@ where
     if dry_run && apply {
         return Err("--dry-run and --apply are mutually exclusive".to_string());
     }
+    if yes && !matches!(command, Command::Setup) {
+        return Err("--yes is only valid for setup".to_string());
+    }
+    if matches!(command, Command::Setup) && apply {
+        return Err("setup uses --yes instead of --apply".to_string());
+    }
+    if matches!(command, Command::Setup) && yes && dry_run {
+        return Err("--yes and --dry-run are mutually exclusive".to_string());
+    }
     if !matches!(
         command,
-        Command::Init | Command::Knowledge | Command::State | Command::Work | Command::Extension
+        Command::Init
+            | Command::Setup
+            | Command::Knowledge
+            | Command::State
+            | Command::Work
+            | Command::Extension
     ) && authority.is_some()
     {
         return Err("--authority is only valid for mutating commands".to_string());
@@ -504,6 +531,7 @@ where
         quiet,
         dry_run,
         apply,
+        yes,
         authority,
         record,
         id,
@@ -545,6 +573,7 @@ fn parse_command(value: &str) -> Result<Command, String> {
         "validate" => Ok(Command::Validate),
         "doctor" => Ok(Command::Doctor),
         "init" => Ok(Command::Init),
+        "setup" => Ok(Command::Setup),
         "knowledge" => Ok(Command::Knowledge),
         "state" => Ok(Command::State),
         "context" => Ok(Command::Context),
@@ -578,6 +607,7 @@ pub fn run(options: Options) -> CommandResult {
         Command::Version => version_result(options),
         Command::Help => help_result(options),
         Command::Init => init_result(options),
+        Command::Setup => setup_result(options),
         Command::Inspect | Command::Validate | Command::Doctor => repository_result(options),
         Command::Knowledge | Command::State | Command::Context => intelligence_result(options),
         Command::Work => work_result(options),
@@ -661,6 +691,91 @@ fn init_result(options: Options) -> CommandResult {
         envelope,
         format: options.format,
         quiet: options.quiet,
+        exit_code: result.exit_code,
+    }
+}
+
+fn setup_result(options: Options) -> CommandResult {
+    let interactive = !options.yes
+        && !options.dry_run
+        && options.format == OutputFormat::Human
+        && io::stdin().is_terminal()
+        && io::stdout().is_terminal();
+    let authority_basis = if options.authority.is_some() {
+        "caller-supplied-bootstrap"
+    } else {
+        "interactive-local-bootstrap"
+    };
+    if interactive {
+        let planned = setup::execute(SetupInput {
+            path: options.path.clone(),
+            apply: false,
+            authority: options.authority.clone(),
+            authority_basis: authority_basis.to_string(),
+        });
+        let planned_result = setup_command_result(planned, options.format, options.quiet);
+        if planned_result.exit_code != 0 {
+            return planned_result;
+        }
+        planned_result.render();
+        print!("Continue? [y/N] ");
+        let _ = io::stdout().flush();
+        let mut answer = String::new();
+        if io::stdin().read_line(&mut answer).is_err()
+            || !matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes")
+        {
+            return setup_command_result(
+                setup::cancelled(options.path.as_deref()),
+                options.format,
+                options.quiet,
+            );
+        }
+    }
+    let result = setup::execute(SetupInput {
+        path: options.path.clone(),
+        apply: options.yes || interactive,
+        authority: options.authority.clone(),
+        authority_basis: authority_basis.to_string(),
+    });
+    setup_command_result(result, options.format, options.quiet)
+}
+
+fn setup_command_result(
+    result: intelligence::QueryResult,
+    format: OutputFormat,
+    quiet: bool,
+) -> CommandResult {
+    let mut envelope = if matches!(
+        result.outcome.as_str(),
+        "success" | "plan_ready" | "cancelled"
+    ) {
+        ResultEnvelope::success("setup")
+    } else {
+        ResultEnvelope::error(
+            "setup",
+            match result.exit_code {
+                2 => "usage_error",
+                3 => "root_error",
+                4 => "validation_findings",
+                5 => "ownership_conflict",
+                6 => "unsupported_contract",
+                7 => "authorization_required",
+                8 => "operation_unknown",
+                _ => "internal_error",
+            },
+        )
+    };
+    envelope.outcome = result.outcome;
+    envelope.repository = result.repository;
+    envelope.diagnostics = result.diagnostics;
+    envelope.evidence = result.evidence;
+    envelope.data = Some(result.data);
+    envelope.plan = result.plan;
+    envelope.operation = result.operation;
+    CommandResult {
+        envelope,
+        format,
+        quiet,
         exit_code: result.exit_code,
     }
 }
@@ -876,10 +991,11 @@ fn extension_result(options: Options) -> CommandResult {
 }
 
 fn usage() -> String {
-    "usage: aos <version|inspect|validate|doctor|init|knowledge|state|context|work|extension> [PATH] [--format human|json] [--quiet]\n\
+    "usage: aos <version|inspect|validate|doctor|init|setup|knowledge|state|context|work|extension> [PATH] [--format human|json] [--quiet]\n\
  read-only commands: version, inspect, validate, doctor.\n\
  init plans by default; use --dry-run to make the non-mutating intent explicit.\n\
  init --apply requires --authority <REFERENCE> and performs transactional adoption.\n\
+ setup detects bundled reference extensions, displays a plan, and confirms before mutation; use --yes for automation.\n\
  knowledge and state list records; use --record --apply with provenance fields to add proposed revisions.\n\
  context selects authoritative active Knowledge and confirmed State deterministically.\n\
  context supports --profile full|compact and an optional --budget-bytes limit.\n\
@@ -954,5 +1070,34 @@ mod tests {
         let options = parse_args(&["init", "--dry-run"]);
         assert_eq!(options.command, Command::Init);
         assert!(options.dry_run);
+    }
+
+    #[test]
+    fn setup_parses_confirmation_and_authority() {
+        let options = parse_args(&[
+            "setup",
+            ".",
+            "--yes",
+            "--authority=local-reviewer",
+            "--format=json",
+        ]);
+        assert_eq!(options.command, Command::Setup);
+        assert!(options.yes);
+        assert_eq!(options.authority.as_deref(), Some("local-reviewer"));
+        assert_eq!(options.format, OutputFormat::Json);
+    }
+
+    #[test]
+    fn setup_rejects_conflicting_or_foreign_confirmation_flags() {
+        assert!(
+            parse([
+                "setup".to_string(),
+                "--yes".to_string(),
+                "--dry-run".to_string(),
+            ])
+            .is_err()
+        );
+        assert!(parse(["init".to_string(), "--yes".to_string()]).is_err());
+        assert!(parse(["setup".to_string(), "--apply".to_string()]).is_err());
     }
 }

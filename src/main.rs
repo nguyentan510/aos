@@ -3,6 +3,7 @@ mod extension;
 mod intelligence;
 mod model;
 mod repository;
+mod setup;
 mod work;
 
 use std::process::ExitCode;

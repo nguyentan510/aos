@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P6 complete; P6.2 production-like qualification is active; P7 remains planned
+**Status:** P6 complete; P6.2 qualification and isolated P6.3 installation work are active; P7 remains planned
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -13,6 +13,43 @@ instead of being trapped in chat history or a specific tool.
 AOS is a product in its own right. This repository contains the source and
 design of AOS; it is not the `.aos/` directory that a future AOS distribution
 will manage inside another repository.
+
+## Quick Start
+
+Windows PowerShell:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/nguyentan510/aos/main/install.ps1))) -ProjectPath .
+```
+
+Linux x86_64 GNU:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nguyentan510/aos/main/install.sh |
+  sh -s -- --project-path .
+```
+
+If AOS is already installed:
+
+```text
+aos setup .
+aos doctor .
+aos context . --format json
+```
+
+`setup` displays one plan and asks once before mutation. CI and other
+non-interactive callers use `aos setup . --yes`. It does not create the project
+folder, initialize Git, modify source, or create Knowledge/Work records.
+
+Distribution uninstall never removes downstream `.aos` project data:
+
+```powershell
+.\install.ps1 -Uninstall
+```
+
+```bash
+sh ./install.sh --uninstall
+```
 
 ## Why AOS
 
@@ -162,6 +199,14 @@ latency and control-data metrics over the same three repositories. Its
 seven-day duration gate remains `ACTIVE`; production-like-runtime-ready is not
 claimed. See
 [P6.2 Production-like Qualification](evidence/P6.2-PRODUCTION-LIKE-QUALIFICATION.md).
+
+P6.3 is an isolated developer-experience follow-on governed by
+[ADR-0011](adr/0011-p6-3-one-command-installation-and-setup.md). It adds
+`aos setup`, embedded reference manifests, checksum-verified Windows/Linux
+installers, offline installer gates, owned uninstall, and hosted release smoke.
+The official P6.2 lane remains pinned outside this repository and continues by
+daily automation; P6.3 does not waive its real elapsed-time gate. See
+[P6.3 Installation and Developer Experience](evidence/P6.3-INSTALLATION-DEVELOPER-EXPERIENCE.md).
 
 Validate the complete design and standards governance with:
 
