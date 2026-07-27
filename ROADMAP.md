@@ -1,8 +1,8 @@
 # AOS Roadmap
 
 **Status:** Canonical delivery sequence
-**Current maturity:** P4 — Knowledge and Context complete
-**Next eligible phase:** P5 — Work, Protocol, and Governance
+**Current maturity:** P5 — governed Work vertical slice active
+**Next eligible phase:** P6 only after P5 closeout
 **Maturity model:** Evidence-gated capabilities, not promised release dates
 
 ## Roadmap rules
@@ -208,7 +208,7 @@ provenance or authority.
 
 ## P5 — Work, Protocol, and Governance
 
-**Status:** `PLANNED`
+**Status:** `ACTIVE`
 
 **Entry conditions**
 
@@ -227,11 +227,25 @@ provenance or authority.
 - Protocol and governance conformance tests.
 - Authorization-denial and reconciliation scenarios.
 - Complete trace from intent to accepted result.
+- [P5 Governed Work Review](evidence/P5-GOVERNED-WORK-REVIEW.md).
+
+**Current implementation**
+
+- Immutable `.aos/work`, `.aos/protocol`, `.aos/governance`, `.aos/runs`, and
+  `.aos/audit` bindings.
+- `aos work create|authorize|run|reconcile|show`.
+- `aos.local.verify@1.0.0` local-only deterministic Protocol.
+- Self-authority denial, stale-context denial, rejection preservation, unknown
+  Run blocking, and evidence-backed reconciliation.
 
 **Exit gate**
 
 AOS can coordinate governed work without allowing runtime or providers to bypass
 project authority.
+
+**Closeout status:** Deferred until the real AI-facing P4 benchmark emits
+`AOS_P4_VALUE_BENCHMARK_OK`. Implementation and local runtime smoke do not
+replace that product-value gate.
 
 ## P6 — Extension Ecosystem
 

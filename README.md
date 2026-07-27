@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P4 Knowledge and Context complete; P5 eligible
+**Status:** P5 governed Work vertical slice implemented; phase closeout deferred
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -47,8 +47,9 @@ Managed project repository
 
 The current Rust `1.96.0` binary implements repository inspection,
 transactional `aos init`, immutable proposed Knowledge and State revisions,
-and deterministic context retrieval. Mutation plans by default and requires
-`--apply --authority <REFERENCE>`.
+deterministic context retrieval, and a governed Work lifecycle bound to the
+local-only `aos.local.verify@1.0.0` Protocol. Mutating commands plan by default
+and require explicit apply and authority evidence.
 
 ## Who AOS is for
 
@@ -123,6 +124,13 @@ Knowledge revisions use `.aos/knowledge/`, State revisions use `.aos/state/`,
 and `aos context` selects provider-independent context while explaining every
 withheld stale, unknown, proposed, non-active, over-limit, or budget-excluded
 record. Consumers may request a compact profile and an explicit byte budget.
+
+The P5 vertical slice is implementation-aligned and runtime-smoke-ready. It
+records immutable Work, Protocol, Governance, Run, and Audit data and exposes
+`aos work create|authorize|run|reconcile|show`. Its evidence is recorded in
+[P5 Governed Work Review](evidence/P5-GOVERNED-WORK-REVIEW.md). P5 phase
+closeout remains deferred until the real AI-facing P4 value benchmark emits
+`AOS_P4_VALUE_BENCHMARK_OK`.
 
 Validate the complete design and standards governance with:
 

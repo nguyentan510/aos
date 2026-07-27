@@ -70,3 +70,4 @@ documents and specifications in the same change.
 | [ADR-0006](0006-p2-read-only-cli-boundary.md) | Accepted | P2 is read-only; `aos init` mutation is deferred to P3 |
 | [ADR-0007](0007-transactional-repository-initialization.md) | Accepted | P3 adopts repositories transactionally through `.aos/repository.json` |
 | [ADR-0008](0008-p4-knowledge-state-context-binding.md) | Accepted | P4 stores immutable Knowledge/State revisions and selects context deterministically |
+| [ADR-0009](0009-p5-governed-work-vertical-slice.md) | Accepted | P5 binds governed Work to immutable context, Protocol, verification, and reconciliation |

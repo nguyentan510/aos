@@ -1,6 +1,7 @@
 use crate::intelligence::{self, ContextProfile, RecordInput, RecordKind};
 use crate::model::{CLI_CONTRACT_VERSION, CLI_VERSION, Diagnostic, OutputFormat, ResultEnvelope};
 use crate::repository;
+use crate::work::{self, WorkAction, WorkInput};
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -13,6 +14,7 @@ pub enum Command {
     Knowledge,
     State,
     Context,
+    Work,
     Help,
 }
 
@@ -27,6 +29,7 @@ impl Command {
             Self::Knowledge => "knowledge",
             Self::State => "state",
             Self::Context => "context",
+            Self::Work => "work",
             Self::Help => "help",
         }
     }
@@ -52,6 +55,19 @@ pub struct Options {
     pub limit: usize,
     pub context_profile: ContextProfile,
     pub budget_bytes: Option<usize>,
+    pub work_action: WorkAction,
+    pub work_id: Option<String>,
+    pub context_id: Option<String>,
+    pub context_kind: Option<String>,
+    pub intent: Option<String>,
+    pub owner: Option<String>,
+    pub scope: Option<String>,
+    pub protocol: Option<String>,
+    pub expected_output: Option<String>,
+    pub verification: Option<String>,
+    pub evidence: Option<String>,
+    pub result: Option<String>,
+    pub reason: Option<String>,
 }
 
 #[derive(Debug)]
@@ -93,6 +109,20 @@ where
     let mut limit = 20usize;
     let mut context_profile = ContextProfile::Full;
     let mut budget_bytes = None;
+    let mut work_action = WorkAction::Show;
+    let mut work_action_explicit = false;
+    let mut work_id = None;
+    let mut context_id = None;
+    let mut context_kind = None;
+    let mut intent = None;
+    let mut owner = None;
+    let mut scope = None;
+    let mut protocol = None;
+    let mut expected_output = None;
+    let mut verification = None;
+    let mut evidence = None;
+    let mut result = None;
+    let mut reason = None;
     let mut iterator = arguments.into_iter();
 
     while let Some(argument) = iterator.next() {
@@ -117,6 +147,19 @@ where
                     limit,
                     context_profile,
                     budget_bytes,
+                    work_action,
+                    work_id,
+                    context_id,
+                    context_kind,
+                    intent,
+                    owner,
+                    scope,
+                    protocol,
+                    expected_output,
+                    verification,
+                    evidence,
+                    result,
+                    reason,
                 });
             }
             "-V" | "--version" => command = Some(Command::Version),
@@ -193,6 +236,56 @@ where
             value if value.starts_with("--authority=") => {
                 authority = Some(value.trim_start_matches("--authority=").to_string());
             }
+            "--work-id" => work_id = Some(next_value(&mut iterator, "--work-id")?),
+            value if value.starts_with("--work-id=") => {
+                work_id = Some(value.trim_start_matches("--work-id=").to_string())
+            }
+            "--context-id" => context_id = Some(next_value(&mut iterator, "--context-id")?),
+            value if value.starts_with("--context-id=") => {
+                context_id = Some(value.trim_start_matches("--context-id=").to_string())
+            }
+            "--context-kind" => context_kind = Some(next_value(&mut iterator, "--context-kind")?),
+            value if value.starts_with("--context-kind=") => {
+                context_kind = Some(value.trim_start_matches("--context-kind=").to_string())
+            }
+            "--intent" => intent = Some(next_value(&mut iterator, "--intent")?),
+            value if value.starts_with("--intent=") => {
+                intent = Some(value.trim_start_matches("--intent=").to_string())
+            }
+            "--owner" => owner = Some(next_value(&mut iterator, "--owner")?),
+            value if value.starts_with("--owner=") => {
+                owner = Some(value.trim_start_matches("--owner=").to_string())
+            }
+            "--scope" => scope = Some(next_value(&mut iterator, "--scope")?),
+            value if value.starts_with("--scope=") => {
+                scope = Some(value.trim_start_matches("--scope=").to_string())
+            }
+            "--protocol" => protocol = Some(next_value(&mut iterator, "--protocol")?),
+            value if value.starts_with("--protocol=") => {
+                protocol = Some(value.trim_start_matches("--protocol=").to_string())
+            }
+            "--expected-output" => {
+                expected_output = Some(next_value(&mut iterator, "--expected-output")?)
+            }
+            value if value.starts_with("--expected-output=") => {
+                expected_output = Some(value.trim_start_matches("--expected-output=").to_string())
+            }
+            "--verification" => verification = Some(next_value(&mut iterator, "--verification")?),
+            value if value.starts_with("--verification=") => {
+                verification = Some(value.trim_start_matches("--verification=").to_string())
+            }
+            "--evidence" => evidence = Some(next_value(&mut iterator, "--evidence")?),
+            value if value.starts_with("--evidence=") => {
+                evidence = Some(value.trim_start_matches("--evidence=").to_string())
+            }
+            "--result" => result = Some(next_value(&mut iterator, "--result")?),
+            value if value.starts_with("--result=") => {
+                result = Some(value.trim_start_matches("--result=").to_string())
+            }
+            "--reason" => reason = Some(next_value(&mut iterator, "--reason")?),
+            value if value.starts_with("--reason=") => {
+                reason = Some(value.trim_start_matches("--reason=").to_string())
+            }
             "--format" => {
                 let value = iterator
                     .next()
@@ -209,24 +302,37 @@ where
                 command = Some(parse_command(value)?);
             }
             value => {
-                if path.is_some() {
+                if matches!(command, Some(Command::Work))
+                    && !work_action_explicit
+                    && path.is_none()
+                    && WorkAction::parse(value).is_ok()
+                {
+                    work_action = WorkAction::parse(value).expect("validated work action");
+                    work_action_explicit = true;
+                } else if path.is_some() {
                     return Err(format!("unexpected argument '{value}'"));
+                } else {
+                    path = Some(PathBuf::from(value));
                 }
-                path = Some(PathBuf::from(value));
             }
         }
     }
 
     let command = command.unwrap_or(Command::Help);
-    if !matches!(command, Command::Init | Command::Knowledge | Command::State) && (dry_run || apply)
+    if !matches!(
+        command,
+        Command::Init | Command::Knowledge | Command::State | Command::Work
+    ) && (dry_run || apply)
     {
         return Err("--dry-run and --apply are only valid for mutating commands".to_string());
     }
     if dry_run && apply {
         return Err("--dry-run and --apply are mutually exclusive".to_string());
     }
-    if !matches!(command, Command::Init | Command::Knowledge | Command::State)
-        && authority.is_some()
+    if !matches!(
+        command,
+        Command::Init | Command::Knowledge | Command::State | Command::Work
+    ) && authority.is_some()
     {
         return Err("--authority is only valid for mutating commands".to_string());
     }
@@ -267,6 +373,31 @@ where
     if authority.is_some() && !record && matches!(command, Command::Knowledge | Command::State) {
         return Err("--authority for knowledge or state requires --record".to_string());
     }
+    if !matches!(command, Command::Work)
+        && (work_id.is_some()
+            || context_id.is_some()
+            || context_kind.is_some()
+            || intent.is_some()
+            || owner.is_some()
+            || scope.is_some()
+            || protocol.is_some()
+            || expected_output.is_some()
+            || verification.is_some()
+            || evidence.is_some()
+            || result.is_some()
+            || reason.is_some())
+    {
+        return Err("work fields are only valid for work".to_string());
+    }
+    if !matches!(command, Command::Work) && work_action_explicit {
+        return Err("work actions are only valid for work".to_string());
+    }
+    if matches!(command, Command::Work)
+        && work_action == WorkAction::Show
+        && (dry_run || apply || authority.is_some())
+    {
+        return Err("work show is read-only and does not accept mutation flags".to_string());
+    }
 
     Ok(Options {
         command,
@@ -287,6 +418,19 @@ where
         limit,
         context_profile,
         budget_bytes,
+        work_action,
+        work_id,
+        context_id,
+        context_kind,
+        intent,
+        owner,
+        scope,
+        protocol,
+        expected_output,
+        verification,
+        evidence,
+        result,
+        reason,
     })
 }
 
@@ -300,6 +444,7 @@ fn parse_command(value: &str) -> Result<Command, String> {
         "knowledge" => Ok(Command::Knowledge),
         "state" => Ok(Command::State),
         "context" => Ok(Command::Context),
+        "work" => Ok(Command::Work),
         "help" => Ok(Command::Help),
         _ => Err(format!("unknown command '{value}'")),
     }
@@ -330,6 +475,7 @@ pub fn run(options: Options) -> CommandResult {
         Command::Init => init_result(options),
         Command::Inspect | Command::Validate | Command::Doctor => repository_result(options),
         Command::Knowledge | Command::State | Command::Context => intelligence_result(options),
+        Command::Work => work_result(options),
     }
 }
 
@@ -529,14 +675,65 @@ fn intelligence_result(options: Options) -> CommandResult {
     }
 }
 
+fn work_result(options: Options) -> CommandResult {
+    let result = work::execute(WorkInput {
+        action: options.work_action,
+        path: options.path.clone(),
+        apply: options.apply,
+        authority: options.authority.clone(),
+        work_id: options.work_id.clone(),
+        context_id: options.context_id.clone(),
+        context_kind: options.context_kind.clone(),
+        intent: options.intent.clone(),
+        owner: options.owner.clone(),
+        scope: options.scope.clone(),
+        protocol: options.protocol.clone(),
+        expected_output: options.expected_output.clone(),
+        verification: options.verification.clone(),
+        evidence: options.evidence.clone(),
+        result: options.result.clone(),
+        reason: options.reason.clone(),
+    });
+    let mut envelope = if result.outcome == "success" || result.outcome == "plan_ready" {
+        ResultEnvelope::success("work")
+    } else {
+        ResultEnvelope::error(
+            "work",
+            match result.exit_code {
+                2 => "usage_error",
+                3 => "root_error",
+                4 => "validation_findings",
+                7 => "authorization_required",
+                8 => "operation_unknown",
+                _ => "internal_error",
+            },
+        )
+    };
+    envelope.outcome = result.outcome;
+    envelope.repository = result.repository;
+    envelope.diagnostics = result.diagnostics;
+    envelope.evidence = result.evidence;
+    envelope.data = Some(result.data);
+    envelope.plan = result.plan;
+    envelope.operation = result.operation;
+    CommandResult {
+        envelope,
+        format: options.format,
+        quiet: options.quiet,
+        exit_code: result.exit_code,
+    }
+}
+
 fn usage() -> String {
-    "usage: aos <version|inspect|validate|doctor|init|knowledge|state|context> [PATH] [--format human|json] [--quiet]\n\
+    "usage: aos <version|inspect|validate|doctor|init|knowledge|state|context|work> [PATH] [--format human|json] [--quiet]\n\
  read-only commands: version, inspect, validate, doctor.\n\
  init plans by default; use --dry-run to make the non-mutating intent explicit.\n\
  init --apply requires --authority <REFERENCE> and performs transactional adoption.\n\
  knowledge and state list records; use --record --apply with provenance fields to add proposed revisions.\n\
  context selects authoritative active Knowledge and confirmed State deterministically.\n\
- context supports --profile full|compact and an optional --budget-bytes limit."
+ context supports --profile full|compact and an optional --budget-bytes limit.\n\
+ work actions: create, authorize, run, reconcile, show; mutating actions require --apply.\n\
+ work run executes only the deterministic local aos.local.verify@1.0.0 protocol."
         .to_string()
 }
 
@@ -576,6 +773,22 @@ mod tests {
         assert_eq!(options.command, Command::Context);
         assert_eq!(options.context_profile, ContextProfile::Compact);
         assert_eq!(options.budget_bytes, Some(1024));
+    }
+
+    #[test]
+    fn parses_work_action_and_governance_fields() {
+        let options = parse_args(&[
+            "work",
+            "authorize",
+            ".",
+            "--work-id=change-1",
+            "--authority=reviewer",
+            "--evidence=review.md",
+        ]);
+        assert_eq!(options.command, Command::Work);
+        assert_eq!(options.work_action, crate::work::WorkAction::Authorize);
+        assert_eq!(options.work_id.as_deref(), Some("change-1"));
+        assert_eq!(options.evidence.as_deref(), Some("review.md"));
     }
 
     #[test]

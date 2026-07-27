@@ -1,6 +1,7 @@
 {
   "schema_version": "AOS-P4-BENCHMARK-1",
-  "description": "Provider-neutral P4 context value scenarios. Repository paths are resolved from environment variables.",
+  "qualification_level": "patch-and-test",
+  "description": "Provider-neutral P4 patch-and-test value scenarios. Repository paths are resolved from environment variables.",
   "default_context_profile": "compact",
   "default_context_budget_bytes": 900,
   "scenarios": [
@@ -9,7 +10,18 @@
       "repository_env": "AOS_REPO",
       "expected_commit": "HEAD",
       "task_type": "onboarding",
-      "task": "Explain the AOS source/distribution/managed-project boundary and identify the canonical design documents.",
+      "task": "Add a short README subsection named 'AI context handoff' that explains the source repository, the downstream .aos control root, and that context output remains provider-neutral. Keep the wording concise and consistent with the existing product boundary.",
+      "expected_terms": [
+        "CLI",
+        ".aos",
+        "VISION.md",
+        "DESIGN.md",
+        "ROADMAP.md"
+      ],
+      "expected_patch_files": [
+        "README.md"
+      ],
+      "verification_command": "node scripts/validate-aos.mjs",
       "baseline_files": [
         "README.md",
         "DESIGN.md",
@@ -46,7 +58,16 @@
       "repository_env": "AOS_REPO",
       "expected_commit": "HEAD",
       "task_type": "bugfix",
-      "task": "A CLI change must preserve deterministic output and the read-only boundary. Identify the implementation and verification files.",
+      "task": "Add a regression assertion to the existing context smoke coverage proving that a proposed Knowledge record is withheld with an explicit authority_proposed reason while the authoritative record remains selected. Do not weaken the read-only boundary.",
+      "expected_terms": [
+        "src/cli.rs",
+        "src/model.rs",
+        "tests/cli_smoke.rs"
+      ],
+      "expected_patch_files": [
+        "tests/cli_smoke.rs"
+      ],
+      "verification_command": "cargo test --test cli_smoke context_is_deterministic_and_explains_withheld_records",
       "baseline_files": [
         "src/cli.rs",
         "src/model.rs",
@@ -83,7 +104,17 @@
       "repository_env": "AOS_REPO",
       "expected_commit": "HEAD",
       "task_type": "feature",
-      "task": "Add a small context-output behavior without weakening provenance or freshness guarantees. Identify the relevant contract, implementation, and test evidence.",
+      "task": "Document the compact context output contract in the CLI specification: selected records retain source_reference, withheld records retain an explicit reason, and the byte budget is enforced deterministically. Add the smallest contract example or wording needed.",
+      "expected_terms": [
+        "specifications/001-information-model.md",
+        "specifications/004-cli.md",
+        "src/intelligence.rs",
+        "tests/cli_smoke.rs"
+      ],
+      "expected_patch_files": [
+        "specifications/004-cli.md"
+      ],
+      "verification_command": "node scripts/validate-aos.mjs",
       "baseline_files": [
         "specifications/001-information-model.md",
         "specifications/004-cli.md",
@@ -121,7 +152,16 @@
       "repository_env": "TRENUX_RUST_REPO",
       "expected_commit": "3297389bd35ff3e8eb129dc74308ec3c8d165bf2",
       "task_type": "onboarding",
-      "task": "Explain where canonical implementation truth, source maps, and traceability evidence are documented in the TRENUX Rust workspace.",
+      "task": "Add one concise implementation-status note stating that production-like or production readiness must not be claimed without current runtime evidence. Preserve the existing readiness vocabulary and document structure.",
+      "expected_terms": [
+        "docs/IMPLEMENTATION_STATUS.md",
+        "docs/SOURCE_MAP.md",
+        "docs/README.md"
+      ],
+      "expected_patch_files": [
+        "docs/IMPLEMENTATION_STATUS.md"
+      ],
+      "verification_command": "git diff --check",
       "baseline_files": [
         "README.md",
         "docs/README.md",
@@ -159,7 +199,16 @@
       "repository_env": "TRENUX_RUST_REPO",
       "expected_commit": "3297389bd35ff3e8eb129dc74308ec3c8d165bf2",
       "task_type": "bugfix",
-      "task": "A downstream consumer must not read unchecked Raw tables. Identify the boundary documentation and the likely verification surface.",
+      "task": "Add a short source-map clarification that downstream consumers must use validated canonical Data truth rather than reading unchecked Raw tables directly. Keep the existing ownership boundary intact.",
+      "expected_terms": [
+        "docs/SOURCE_MAP.md",
+        "docs/TRACEABILITY_MATRIX.md",
+        "docs/IMPLEMENTATION_STATUS.md"
+      ],
+      "expected_patch_files": [
+        "docs/SOURCE_MAP.md"
+      ],
+      "verification_command": "git diff --check",
       "baseline_files": [
         "docs/TRACEABILITY_MATRIX.md",
         "docs/SOURCE_MAP.md",
@@ -196,7 +245,17 @@
       "repository_env": "TRENUX_RUST_REPO",
       "expected_commit": "3297389bd35ff3e8eb129dc74308ec3c8d165bf2",
       "task_type": "feature",
-      "task": "Plan a narrow downstream consumer change while preserving the Data to Compute Core boundary and current readiness gates.",
+      "task": "Add a traceability note for a narrow downstream consumer change, requiring an upstream contract reference, implementation owner, verification evidence, and current readiness status before promotion.",
+      "expected_terms": [
+        "docs/README.md",
+        "docs/SOURCE_MAP.md",
+        "docs/TRACEABILITY_MATRIX.md",
+        "docs/IMPLEMENTATION_STATUS.md"
+      ],
+      "expected_patch_files": [
+        "docs/TRACEABILITY_MATRIX.md"
+      ],
+      "verification_command": "git diff --check",
       "baseline_files": [
         "docs/README.md",
         "docs/SOURCE_MAP.md",

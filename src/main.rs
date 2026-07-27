@@ -2,6 +2,7 @@ mod cli;
 mod intelligence;
 mod model;
 mod repository;
+mod work;
 
 use std::process::ExitCode;
 

@@ -237,6 +237,20 @@ foreach ($scenario in $manifest.scenarios) {
     }
 }
 
+$qualificationReady = [string]$manifest.qualification_level -eq "patch-and-test" -and @(
+    $manifest.scenarios |
+        Where-Object {
+            [string]::IsNullOrWhiteSpace([string]$_.verification_command) -or
+            @($_.expected_patch_files).Count -eq 0
+        }
+).Count -eq 0
+$passMarker = if ($allStructuralPass -and $allAgentResultsPresent -and $allAgentThresholdsPass -and $qualificationReady) {
+    "AOS_P4_VALUE_BENCHMARK_OK"
+} elseif ($allStructuralPass -and $allAgentResultsPresent -and $allAgentThresholdsPass) {
+    "AOS_P4_AI_FACING_CALIBRATION_OK"
+} else {
+    "AOS_P4_VALUE_BENCHMARK_STRUCTURAL_OK"
+}
 $result = [ordered]@{
     schema_version = "AOS-P4-BENCHMARK-1"
     run_id = $runId
@@ -244,7 +258,9 @@ $result = [ordered]@{
     manifest = (Resolve-Path -LiteralPath $ManifestPath).Path
     structural_status = if ($allStructuralPass) { "PASS" } else { "FAIL" }
     agent_status = if ($allAgentResultsPresent -and $allAgentThresholdsPass) { "PASS" } else { "PENDING" }
-    pass_marker = if ($allStructuralPass -and $allAgentResultsPresent -and $allAgentThresholdsPass) { "AOS_P4_VALUE_BENCHMARK_OK" } else { "AOS_P4_VALUE_BENCHMARK_STRUCTURAL_OK" }
+    qualification_level = [string]$manifest.qualification_level
+    qualification_ready = $qualificationReady
+    pass_marker = $passMarker
     token_estimates = "Provider-neutral estimate uses UTF-8 bytes divided by four; provider tokenizer runs require agent result files."
     scenarios = $scenarioResults
 }

@@ -24,8 +24,12 @@ const requiredFiles = [
   "src/model.rs",
   "src/repository.rs",
   "src/intelligence.rs",
+  "src/work.rs",
   "tests/cli_smoke.rs",
   "scripts/validate-aos.mjs",
+  "scripts/run_p5_governed_work_smoke.ps1",
+  "scripts/run_p5_hardening_gate.ps1",
+  "scripts/run_p4_ai_facing_benchmark.ps1",
   "evidence/P0-DESIGN-FOUNDATION-REVIEW.md",
   "evidence/P1-AOS-SPEC-001-REVIEW.md",
   "evidence/P1-AOS-SPEC-002-REVIEW.md",
@@ -37,6 +41,7 @@ const requiredFiles = [
   "evidence/P2-READ-ONLY-CLI-REVIEW.md",
   "evidence/P3-TRANSACTIONAL-INIT-REVIEW.md",
   "evidence/P4-KNOWLEDGE-CONTEXT-REVIEW.md",
+  "evidence/P5-GOVERNED-WORK-REVIEW.md",
   "specifications/README.md",
   "specifications/TEMPLATE.md",
   "specifications/001-information-model.md",
@@ -55,6 +60,7 @@ const requiredFiles = [
   "adr/0006-p2-read-only-cli-boundary.md",
   "adr/0007-transactional-repository-initialization.md",
   "adr/0008-p4-knowledge-state-context-binding.md",
+  "adr/0009-p5-governed-work-vertical-slice.md",
 ];
 
 const requiredHeadings = new Map([
@@ -250,6 +256,17 @@ const requiredHeadings = new Map([
     ],
   ],
   [
+    "evidence/P5-GOVERNED-WORK-REVIEW.md",
+    [
+      "Review objective",
+      "Entry-gate truth",
+      "Implemented vertical slice",
+      "Safety evidence",
+      "Verification",
+      "Maturity decision",
+    ],
+  ],
+  [
     "specifications/001-information-model.md",
     [
       "Purpose",
@@ -317,6 +334,7 @@ const requiredHeadings = new Map([
       "Terminology",
       "Normative requirements",
       "P4 Knowledge and Context commands",
+      "P5 Work, Protocol, and Governance commands",
       "Interfaces and data flow",
       "Lifecycle and state transitions",
       "Failure behavior",
@@ -566,6 +584,7 @@ for (const target of [
   "evidence/P2-READ-ONLY-CLI-REVIEW.md",
   "evidence/P3-TRANSACTIONAL-INIT-REVIEW.md",
   "evidence/P4-KNOWLEDGE-CONTEXT-REVIEW.md",
+  "evidence/P5-GOVERNED-WORK-REVIEW.md",
 ]) {
   if (!readme.includes(`](${target})`)) {
     errors.push(`README.md: missing navigation link to ${target}`);
@@ -901,11 +920,11 @@ if (p2Start < 0 || p3Start < 0 || p3Start <= p2Start) {
   }
 }
 
-if (!roadmap.includes("**Current maturity:** P4")) {
-  errors.push("ROADMAP.md: current maturity must identify P4 as complete");
+if (!roadmap.includes("**Current maturity:** P5")) {
+  errors.push("ROADMAP.md: current maturity must identify the active P5 slice");
 }
-if (!roadmap.includes("**Next eligible phase:** P5")) {
-  errors.push("ROADMAP.md: next eligible phase must identify P5");
+if (!roadmap.includes("**Next eligible phase:** P6 only after P5 closeout")) {
+  errors.push("ROADMAP.md: P6 must remain gated by P5 closeout");
 }
 
 const p2Review = readUtf8("evidence/P2-READ-ONLY-CLI-REVIEW.md");
@@ -930,6 +949,7 @@ for (const sourceFile of [
   "src/model.rs",
   "src/repository.rs",
   "src/intelligence.rs",
+  "src/work.rs",
   "tests/cli_smoke.rs",
 ]) {
   if (readUtf8(sourceFile).trim().length === 0) {
@@ -977,8 +997,14 @@ if (p4Start < 0 || p5Start < 0 || p5Start <= p4Start) {
   if (!p4Section.includes("evidence/P4-KNOWLEDGE-CONTEXT-REVIEW.md")) {
     errors.push("ROADMAP.md: P4 closeout evidence link is missing");
   }
-  if (!p5Section.includes("**Status:** `PLANNED`")) {
-    errors.push("ROADMAP.md: P5 must remain PLANNED until Work/Governance is verified");
+  if (!p5Section.includes("**Status:** `ACTIVE`")) {
+    errors.push("ROADMAP.md: P5 must be ACTIVE while its value gate remains deferred");
+  }
+  if (!p5Section.includes("evidence/P5-GOVERNED-WORK-REVIEW.md")) {
+    errors.push("ROADMAP.md: P5 implementation evidence link is missing");
+  }
+  if (!p5Section.includes("AOS_P4_VALUE_BENCHMARK_OK")) {
+    errors.push("ROADMAP.md: P5 closeout must remain gated by the AI-facing P4 benchmark");
   }
 }
 
@@ -1004,6 +1030,26 @@ const p4CliSpecification = readUtf8("specifications/004-cli.md");
 for (const command of ["aos knowledge", "aos state", "aos context"]) {
   if (!p4CliSpecification.includes(command)) {
     errors.push(`AOS-SPEC-004: P4 command ${command} is missing`);
+  }
+}
+
+const p5Review = readUtf8("evidence/P5-GOVERNED-WORK-REVIEW.md");
+if (!p5Review.includes("**Status:** IMPLEMENTATION PASS; PHASE CLOSEOUT DEFERRED")) {
+  errors.push("P5 review: implementation pass and deferred closeout truth is missing");
+}
+for (const marker of [
+  "AOS_P5_GOVERNED_WORK_CONTRACT_OK",
+  "AOS_P5_GOVERNED_WORK_SMOKE_OK",
+  "AOS_P5_GOVERNANCE_RECONCILIATION_OK",
+  "AOS_P5_HARDENING_OK",
+]) {
+  if (!p5Review.includes(marker)) {
+    errors.push(`P5 review: expected marker ${marker} is missing`);
+  }
+}
+for (const action of ["create", "authorize", "run", "reconcile", "show"]) {
+  if (!p4CliSpecification.includes(`\`aos work ${action}\``)) {
+    errors.push(`AOS-SPEC-004: P5 work action ${action} is missing`);
   }
 }
 
