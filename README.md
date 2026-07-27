@@ -145,6 +145,15 @@ packages, and verified checksums. Production-like-runtime-ready and
 production-ready remain explicitly unclaimed. See
 [P6 Extension Ecosystem Review](evidence/P6-EXTENSION-ECOSYSTEM-REVIEW.md).
 
+A bounded P6.1 follow-on adds an
+[Extension Authoring Kit](extensions/README.md), manifest and Cargo input
+limits, interrupted-enable recovery coverage, and a deterministic
+three-repository pilot with two repeats per capability. The pilot records 12
+Extension Runs with zero normalized replay drift and no source-repository
+mutation. See
+[P6.1 Adoption and Hardening Review](evidence/P6.1-ADOPTION-HARDENING-REVIEW.md).
+This strengthens P6 evidence without activating P7.
+
 Validate the complete design and standards governance with:
 
 ```bash

@@ -1,0 +1,32 @@
+{
+  "schema_version": "1",
+  "contract_version": "AOS-SPEC-006",
+  "id": "aos.example.repository",
+  "version": "1.0.0",
+  "type": "tool",
+  "owner": "replace-with-project-owner",
+  "namespace": "aos.example.repository",
+  "aos_compatibility": ">=0.1.0, <0.2.0",
+  "dependencies": [],
+  "capabilities": [
+    {
+      "name": "aos.example.repository.summary",
+      "host_operation": "repository.summary@1.0.0",
+      "operation_class": "read_only",
+      "resource_scopes": [
+        "repository:."
+      ],
+      "idempotent": true,
+      "retryable": true,
+      "compensatable": false,
+      "reconciliation_required": false
+    }
+  ],
+  "data_ownership": "aos.example.repository",
+  "security": {
+    "network": false,
+    "secrets": false,
+    "process": false
+  },
+  "failure_behavior": "fail_closed"
+}

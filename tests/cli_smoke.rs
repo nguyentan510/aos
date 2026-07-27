@@ -1685,3 +1685,120 @@ fn concurrent_extension_enable_never_overwrites_lifecycle_revisions() {
 
     fs::remove_dir_all(repository).expect("temporary repository should be removable");
 }
+
+#[test]
+fn extension_manifest_resource_limits_and_invalid_utf8_fail_closed() {
+    let repository = temp_repository("p6-resource-limits");
+    initialize_repository(&repository);
+    let fixture_directory = repository.join("extension-fixtures");
+    fs::create_dir_all(&fixture_directory).expect("fixture directory should be created");
+
+    let oversized = fixture_directory.join("oversized.json");
+    fs::write(&oversized, vec![b' '; 256 * 1024 + 1])
+        .expect("oversized manifest fixture should be written");
+    let oversized_result = run_aos(&[
+        "extension",
+        "validate",
+        repository.to_str().expect("temporary path should be UTF-8"),
+        &format!("--manifest={}", oversized.to_string_lossy()),
+        "--format=json",
+    ]);
+    assert_eq!(oversized_result.status.code(), Some(4));
+    assert!(stdout(&oversized_result).contains("AOS-EXTENSION-MANIFEST-TOO-LARGE"));
+
+    let invalid_utf8 = fixture_directory.join("invalid-utf8.json");
+    fs::write(&invalid_utf8, [0xff, 0xfe, 0xfd]).expect("invalid UTF-8 fixture should be written");
+    let invalid_result = run_aos(&[
+        "extension",
+        "validate",
+        repository.to_str().expect("temporary path should be UTF-8"),
+        &format!("--manifest={}", invalid_utf8.to_string_lossy()),
+        "--format=json",
+    ]);
+    assert_eq!(invalid_result.status.code(), Some(4));
+    assert!(stdout(&invalid_result).contains("AOS-EXTENSION-MANIFEST-READ-FAILED"));
+    assert!(!repository.join(".aos/extensions").exists());
+
+    fs::remove_dir_all(repository).expect("temporary repository should be removable");
+}
+
+#[test]
+fn interrupted_enable_recovers_from_an_existing_manifest_snapshot() {
+    let repository = temp_repository("p6-interrupted-enable");
+    initialize_repository(&repository);
+    let manifest = copy_reference_manifest(&repository, "aos.reference.repository");
+    assert!(enable_extension(&repository, &manifest).status.success());
+    let snapshot = repository.join(".aos/extensions/manifests/aos.reference.repository@1.0.0.json");
+    let retained_snapshot =
+        fs::read_to_string(&snapshot).expect("manifest snapshot should be retained");
+    fs::remove_dir_all(repository.join(".aos/extensions/lifecycle"))
+        .expect("interrupted lifecycle fixture should be removed");
+    fs::remove_dir_all(repository.join(".aos/governance"))
+        .expect("interrupted governance fixture should be removed");
+    fs::remove_dir_all(repository.join(".aos/audit"))
+        .expect("interrupted audit fixture should be removed");
+
+    let recovery = enable_extension(&repository, &manifest);
+    assert!(
+        recovery.status.success(),
+        "enable should reconcile the matching retained snapshot: {}",
+        stdout(&recovery)
+    );
+    let lifecycle = fs::read_dir(repository.join(".aos/extensions/lifecycle"))
+        .expect("lifecycle should be created")
+        .filter_map(Result::ok)
+        .map(|entry| fs::read_to_string(entry.path()).expect("lifecycle should be readable"))
+        .collect::<Vec<_>>();
+    assert!(
+        lifecycle
+            .iter()
+            .any(|body| body.contains("\"status\":\"validated\""))
+    );
+    assert!(
+        lifecycle
+            .iter()
+            .any(|body| body.contains("\"status\":\"enabled\""))
+    );
+    assert_eq!(
+        fs::read_to_string(snapshot).expect("snapshot should remain readable"),
+        retained_snapshot
+    );
+
+    fs::remove_dir_all(repository).expect("temporary repository should be removable");
+}
+
+#[test]
+fn extension_authoring_template_passes_runtime_validation_without_mutation() {
+    let repository = temp_repository("p6-authoring-template");
+    initialize_repository(&repository);
+    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("extensions")
+        .join("templates")
+        .join("repository-summary-extension.json");
+    let fixture_directory = repository.join("extension-fixtures");
+    fs::create_dir_all(&fixture_directory).expect("fixture directory should be created");
+    let template = fixture_directory.join("repository-summary-extension.json");
+    fs::copy(source, &template).expect("authoring template should be copied");
+    let extension_root = repository.join(".aos/extensions");
+
+    let validation = run_aos(&[
+        "extension",
+        "validate",
+        repository.to_str().expect("temporary path should be UTF-8"),
+        &format!("--manifest={}", template.to_string_lossy()),
+        "--format=json",
+    ]);
+    assert!(
+        validation.status.success(),
+        "template validation stderr: {}\ntemplate validation stdout: {}",
+        stderr(&validation),
+        stdout(&validation)
+    );
+    assert!(stdout(&validation).contains("AOS-EXTENSION-VALID"));
+    assert!(
+        !extension_root.exists(),
+        "template validation must remain read-only"
+    );
+
+    fs::remove_dir_all(repository).expect("temporary repository should be removable");
+}

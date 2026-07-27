@@ -19,6 +19,8 @@ pub const EXTENSION_PROTOCOL_ID: &str = "aos.extension.readonly";
 const EXTENSION_SCHEMA_VERSION: &str = "1";
 const HOST_REPOSITORY_SUMMARY: &str = "repository.summary@1.0.0";
 const HOST_RUST_CARGO_SUMMARY: &str = "rust.cargo_manifest.summary@1.0.0";
+const MAX_MANIFEST_BYTES: u64 = 256 * 1024;
+const MAX_CARGO_MANIFEST_BYTES: u64 = 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExtensionAction {
@@ -878,6 +880,22 @@ fn execute_rust_cargo_summary(root: &Path) -> Result<(String, String, Value), Ex
             7,
         ));
     }
+    let metadata = fs::metadata(&canonical).map_err(|metadata_error| {
+        error(
+            "AOS-EXTENSION-ADAPTER-INPUT-INVALID",
+            metadata_error.to_string(),
+            "extension:rust-cargo-input",
+            4,
+        )
+    })?;
+    if metadata.len() > MAX_CARGO_MANIFEST_BYTES {
+        return Err(error(
+            "AOS-EXTENSION-ADAPTER-INPUT-TOO-LARGE",
+            "Cargo.toml exceeds the declarative adapter input limit",
+            "extension:resource-limit",
+            4,
+        ));
+    }
     let bytes = fs::read(&canonical).map_err(|read_error| {
         error(
             "AOS-EXTENSION-ADAPTER-INPUT-INVALID",
@@ -986,6 +1004,22 @@ fn load_snapshot(root: &Path, id: &str, version: &str) -> Result<ManifestBundle,
 }
 
 fn load_manifest_file(path: &Path) -> Result<ManifestBundle, ExtensionError> {
+    let metadata = fs::metadata(path).map_err(|metadata_error| {
+        error(
+            "AOS-EXTENSION-MANIFEST-READ-FAILED",
+            metadata_error.to_string(),
+            "extension:manifest-read",
+            4,
+        )
+    })?;
+    if metadata.len() > MAX_MANIFEST_BYTES {
+        return Err(error(
+            "AOS-EXTENSION-MANIFEST-TOO-LARGE",
+            "extension manifest exceeds the 256 KiB contract limit",
+            "extension:resource-limit",
+            4,
+        ));
+    }
     let raw = fs::read_to_string(path).map_err(|read_error| {
         error(
             "AOS-EXTENSION-MANIFEST-READ-FAILED",
@@ -1847,6 +1881,25 @@ mod tests {
             let failure = validate_manifest_shape(&manifest).expect_err("must fail");
             assert_eq!(failure.code, "AOS-EXTENSION-SECURITY-INVALID");
         }
+    }
+
+    #[test]
+    fn oversized_cargo_manifest_is_rejected_before_parsing() {
+        let root = std::env::temp_dir().join(format!(
+            "aos-extension-cargo-limit-{}-{}",
+            std::process::id(),
+            unique_event_suffix()
+        ));
+        fs::create_dir_all(&root).expect("temporary root should be created");
+        fs::write(
+            root.join("Cargo.toml"),
+            vec![b'#'; MAX_CARGO_MANIFEST_BYTES as usize + 1],
+        )
+        .expect("oversized Cargo fixture should be written");
+        let failure = execute_rust_cargo_summary(&root).expect_err("must fail");
+        assert_eq!(failure.code, "AOS-EXTENSION-ADAPTER-INPUT-TOO-LARGE");
+        assert_eq!(failure.exit_code, 4);
+        fs::remove_dir_all(root).expect("temporary root should be removable");
     }
 
     #[test]

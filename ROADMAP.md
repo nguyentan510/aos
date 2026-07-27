@@ -291,6 +291,18 @@ reference packages, and verified checksums.
 Independent extensions can add capability without compromising core project
 truth.
 
+### P6.1 bounded adoption and hardening evidence
+
+P6 remains closed. A bounded follow-on adds an editor-facing JSON Schema,
+runtime-valid template, resource limits, interrupted-enable recovery coverage,
+and a repeated controlled pilot over three fixed repository snapshots.
+
+The pilot executes Generic Repository and Rust capabilities twice per
+repository: 12 governed Extension Runs, zero normalized replay drift, and zero
+source-repository mutations. Evidence is recorded in
+[`P6.1 Adoption and Hardening Review`](evidence/P6.1-ADOPTION-HARDENING-REVIEW.md).
+This evidence does not activate P7 or claim production-like readiness.
+
 ## P7 — Scale and Distributed Runtime
 
 **Status:** `PLANNED`

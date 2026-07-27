@@ -7,6 +7,7 @@ const validators = [
   "validate-design-foundation.mjs",
   "validate-specifications.mjs",
   "validate-p6-extension-ecosystem.mjs",
+  "validate-extension-authoring-kit.mjs",
 ];
 
 for (const validator of validators) {

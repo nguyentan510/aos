@@ -83,6 +83,11 @@ requireText("adr/0010-p6-governed-declarative-extension-ecosystem.md", [
   "**Status:** Accepted",
   "Direct `aos extension invoke`",
 ]);
+requireText("extensions/README.md", [
+  "extension-manifest-v1.schema.json",
+  "aos extension validate",
+  "aos.extension.readonly@1.0.0",
+]);
 requireText("evidence/P6-EXTENSION-ECOSYSTEM-REVIEW.md", [
   "AOS_P6_EXTENSION_CONTRACT_OK",
   "AOS_P6_EXTENSION_LIFECYCLE_OK",
@@ -90,8 +95,14 @@ requireText("evidence/P6-EXTENSION-ECOSYSTEM-REVIEW.md", [
   "AOS_P6_REFERENCE_EXTENSION_SMOKE_OK",
   "AOS_P6_EXTENSION_ECOSYSTEM_OK",
 ]);
+requireText("evidence/P6.1-ADOPTION-HARDENING-REVIEW.md", [
+  "AOS_P6_1_AUTHORING_KIT_OK",
+  "AOS_P6_1_MULTI_REPOSITORY_PILOT_OK",
+  "normalized replay drift: 0",
+]);
 requireText(".github/workflows/ci.yml", [
   "run_p6_extension_ecosystem_smoke.ps1",
+  "run_p6_1_multi_repository_pilot.ps1",
 ]);
 requireText(".github/workflows/release.yml", [
   "cp -R extensions",

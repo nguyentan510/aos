@@ -58,3 +58,7 @@ jobs:
       - name: P6 governed extension ecosystem smoke
         shell: pwsh
         run: ./scripts/run_p6_extension_ecosystem_smoke.ps1
+
+      - name: P6.1 repeated snapshot pilot gate
+        shell: pwsh
+        run: ./scripts/run_p6_1_multi_repository_pilot.ps1 -RepositoryPath $PWD -Repeats 2
