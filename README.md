@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P5 complete; P6 Extension Ecosystem active
+**Status:** P6 complete at governed declarative-local scope; P7 remains planned
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -84,8 +84,9 @@ consequences are recorded under [adr/](adr/README.md).
 The project has completed **P0 — Design Foundation**, **P1 — Standards and
 Contracts**, **P2 — Read-only Project Intelligence CLI**, **P3 — Transactional
 Repository Initialization**, **P4 — Knowledge and Context**, and **P5 —
-Work, Protocol, and Governance**. **P6 — Extension Ecosystem** is the active
-delivery phase. The accepted contracts are
+Work, Protocol, and Governance**, and **P6 — Extension Ecosystem** at the
+governed declarative-local scope. P7 remains planned until a measured scale
+bottleneck justifies it. The accepted contracts are
 [`AOS-SPEC-001 — Information Model`](specifications/001-information-model.md),
 [`AOS-SPEC-002 — Repository`](specifications/002-repository.md),
 [`AOS-SPEC-003 — Protocol`](specifications/003-protocol.md),
@@ -132,20 +133,16 @@ records immutable Work, Protocol, Governance, Run, and Audit data and exposes
 [P5 Governed Work Review](evidence/P5-GOVERNED-WORK-REVIEW.md) and
 [P5 Controlled Downstream Pilot](evidence/P5-CONTROLLED-DOWNSTREAM-PILOT.md).
 The P4 value benchmark, controlled downstream pilot, local CI-equivalent gates,
-and GitHub-hosted Windows and Ubuntu CI pass. P6 now focuses on versioned
-extension discovery, compatibility, capability isolation, and proof that
-extensions cannot bypass Governance. The CI-built
-[`v0.1.0-rc.2`](https://github.com/nguyentan510/aos/releases/tag/v0.1.0-rc.2)
-prerelease contains Windows and Linux archives with published checksums.
-Production-like-runtime-ready and production-ready remain explicitly unclaimed.
-
-The P6 implementation candidate now provides governed, declarative,
+and GitHub-hosted Windows and Ubuntu CI pass. P6 provides governed, declarative,
 local-read-only extension lifecycle and execution. The Generic Repository and
 Rust reference manifests run only through authorized Work using
 `aos.extension.readonly@1.0.0`; arbitrary executable, command, path, network,
-secret, and provider inputs are not supported. Local AOS and fixed-snapshot
-TRENUX smokes pass. P6 remains active until hosted Windows/Ubuntu CI and the
-`v0.1.0-rc.3` packaged-manifest provenance gate pass. See
+secret, and provider inputs are not supported. Local AOS, fixed-snapshot
+TRENUX, and hosted Windows/Ubuntu smokes pass. The CI-built
+[`v0.1.0-rc.3`](https://github.com/nguyentan510/aos/releases/tag/v0.1.0-rc.3)
+prerelease contains Windows and Linux binaries, both reference manifest
+packages, and verified checksums. Production-like-runtime-ready and
+production-ready remain explicitly unclaimed. See
 [P6 Extension Ecosystem Review](evidence/P6-EXTENSION-ECOSYSTEM-REVIEW.md).
 
 Validate the complete design and standards governance with:

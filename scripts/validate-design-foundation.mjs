@@ -927,8 +927,8 @@ if (p2Start < 0 || p3Start < 0 || p3Start <= p2Start) {
 if (!roadmap.includes("**Current maturity:** P6")) {
   errors.push("ROADMAP.md: current maturity must identify the active P6 slice");
 }
-if (!roadmap.includes("**Next eligible phase:** P7 only after P6 closeout")) {
-  errors.push("ROADMAP.md: P7 must remain gated by P6 closeout");
+if (!roadmap.includes("**Next eligible phase:** P7 only after a measured scale need")) {
+  errors.push("ROADMAP.md: P7 must remain gated by a measured scale need");
 }
 
 const p2Review = readUtf8("evidence/P2-READ-ONLY-CLI-REVIEW.md");
@@ -954,6 +954,7 @@ for (const sourceFile of [
   "src/repository.rs",
   "src/intelligence.rs",
   "src/work.rs",
+  "src/extension.rs",
   "tests/cli_smoke.rs",
 ]) {
   if (readUtf8(sourceFile).trim().length === 0) {
@@ -1020,9 +1021,22 @@ if (p6Start < 0 || p7Start < 0 || p7Start <= p6Start) {
   errors.push("ROADMAP.md: P6/P7 ordering is missing");
 } else {
   const p6Section = roadmap.slice(p6Start, p7Start);
-  if (!p6Section.includes("**Status:** `ACTIVE`")) {
-    errors.push("ROADMAP.md: P6 must be ACTIVE after P5 closeout");
+  if (!p6Section.includes("**Status:** `COMPLETE`")) {
+    errors.push("ROADMAP.md: P6 must be COMPLETE after hosted CI and RC3 closeout");
   }
+  if (!p6Section.includes("30251035563") ||
+      !p6Section.includes("30251174570") ||
+      !p6Section.includes("v0.1.0-rc.3")) {
+    errors.push("ROADMAP.md: P6 closeout must record hosted CI and RC3 provenance");
+  }
+}
+
+const p6Review = readUtf8("evidence/P6-EXTENSION-ECOSYSTEM-REVIEW.md");
+if (!p6Review.includes("**Status:** COMPLETE")) {
+  errors.push("P6 review: status must be COMPLETE");
+}
+if (!p6Review.includes("AOS_RC3_CHECKSUMS_OK")) {
+  errors.push("P6 review: RC3 checksum verification evidence is missing");
 }
 
 const p4Review = readUtf8("evidence/P4-KNOWLEDGE-CONTEXT-REVIEW.md");

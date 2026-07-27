@@ -1,8 +1,8 @@
 # AOS Roadmap
 
 **Status:** Canonical delivery sequence
-**Current maturity:** P6 — Extension Ecosystem active
-**Next eligible phase:** P7 only after P6 closeout and measured scale need
+**Current maturity:** P6 — Extension Ecosystem complete at declarative-local scope
+**Next eligible phase:** P7 only after a measured scale need
 **Maturity model:** Evidence-gated capabilities, not promised release dates
 
 ## Roadmap rules
@@ -248,11 +248,12 @@ format/test/build/clippy/validator gates, and P5 smoke/hardening gates pass.
 GitHub Actions run `30246501837` executed successfully on Windows and Ubuntu
 for closeout commit `33b7cf48e91f870751dba576c6a9e3bf5bbf3e98`. Release workflow
 `30246618788` built and published `v0.1.0-rc.2` for Windows and Linux with
-verified checksums. P6 is now the active phase.
+verified checksums. P6 subsequently passed its governed declarative-local
+extension closeout.
 
 ## P6 — Extension Ecosystem
 
-**Status:** `ACTIVE`
+**Status:** `COMPLETE`
 
 **Entry conditions**
 
@@ -278,10 +279,12 @@ verified checksums. P6 is now the active phase.
 - Proof that extensions cannot redefine Core semantics, bypass Governance,
   directly invoke capability code, widen resource scope, or lose provenance.
 
-**Current evidence:** Local implementation, both reference smokes, digest
-tamper quarantine, deterministic replay, and the TRENUX fixed-snapshot smoke
-pass. Hosted Windows/Ubuntu CI and `v0.1.0-rc.3` provenance remain the closeout
-gates.
+**Closeout:** Passed on 2026-07-27. Local implementation, both reference
+smokes, digest-tamper quarantine, Governance binding denial, deterministic
+replay, concurrent lifecycle safety, and the TRENUX fixed-snapshot smoke pass.
+GitHub Actions run `30251035563` passed on Windows and Ubuntu. Release workflow
+`30251174570` published `v0.1.0-rc.3` with Windows/Linux binaries, both
+reference packages, and verified checksums.
 
 **Exit gate**
 
