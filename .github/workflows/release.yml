@@ -63,7 +63,7 @@ jobs:
           mkdir -p dist/package
           cp "target/${{ matrix.target }}/release/aos" dist/package/aos
           cp -R extensions dist/package/extensions
-          tar -C dist/package -czf "../${{ matrix.archive }}" aos extensions
+          tar -czf "dist/${{ matrix.archive }}" -C dist/package aos extensions
           rm -rf dist/package
 
       - name: Upload packaged binary
