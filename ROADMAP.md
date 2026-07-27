@@ -305,7 +305,7 @@ This evidence does not activate P7 or claim production-like readiness.
 
 ### P6.2 production-like qualification
 
-**Status:** `COMPLETE`
+**Status:** `ACTIVE`
 
 P6.2 adds deterministic filesystem boundary injection, recovery of incomplete
 digest-bound Governance/Audit enable traces, extension-aware reconciliation,
@@ -324,7 +324,7 @@ measured performance, availability, or coordination bottleneck.
 
 ### P6.3 one-command installation and developer experience
 
-**Status:** `ACTIVE`
+**Status:** `COMPLETE`
 
 ADR-0011 authorizes this follow-on in an isolated lane while the official P6.2
 qualification continues against pinned binary, manifest, harness, and commit
@@ -358,6 +358,29 @@ Ubuntu for implementation commit
 published `v0.1.0-rc.4`, attested all five assets, then installed, exercised
 governed extensions, and uninstalled the published distribution successfully
 on fresh Windows and Ubuntu runners while retaining downstream `.aos`.
+
+### P6.4 controlled adoption pilot
+
+**Status:** `ACTIVE`
+
+P6.4 proves adoption without widening Core semantics. The published RC4 is
+installed into an isolated root and used across empty, generic, and Rust
+repositories. Setup, governed Knowledge promotion, deterministic bounded
+context, both reference extensions, Agent-brief generation, idempotent rerun,
+and owned uninstall all pass without source mutation or loss of downstream
+`.aos`.
+
+A real provider-neutral consumer qualification also passes onboarding, bugfix,
+and feature tasks with independent `cargo test` verification and no mutation
+of AOS control data. The cumulative Agent input-token count is high enough to
+justify a later orchestration optimization slice; it is not a reason to weaken
+the successful correctness or governance result.
+
+Evidence is recorded in
+[`P6.4 Controlled Adoption Pilot`](evidence/P6.4-CONTROLLED-ADOPTION-PILOT.md).
+Closeout waits only for the structural harness to pass on fresh hosted Windows
+and Ubuntu runners. P6.2 remains active on its separate pinned real-duration
+lane, and P7 remains planned pending a measured scaling bottleneck.
 
 ## P7 — Scale and Distributed Runtime
 

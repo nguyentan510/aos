@@ -80,3 +80,13 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: sh ./scripts/run_p6_3_linux_installer_smoke.sh
+
+      - name: P6.4 controlled adoption pilot
+        shell: pwsh
+        run: |
+          $binary = if ($IsWindows) {
+            Join-Path $PWD 'target\debug\aos.exe'
+          } else {
+            Join-Path $PWD 'target/debug/aos'
+          }
+          ./scripts/run_p6_4_controlled_adoption_pilot.ps1 -AosBinary $binary

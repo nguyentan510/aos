@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P6 and P6.3 installation/DX complete; P6.2 qualification remains active; P7 remains planned
+**Status:** P6 and P6.3 installation/DX complete; P6.4 controlled adoption is active; P6.2 qualification remains active; P7 remains planned
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -211,6 +211,14 @@ The CI-built
 [`v0.1.0-rc.4`](https://github.com/nguyentan510/aos/releases/tag/v0.1.0-rc.4)
 prerelease contains both binaries, both installers, exact checksums, and GitHub
 build provenance attestations.
+
+P6.4 controlled adoption runs the published RC4 across empty, generic, and
+Rust repositories, then qualifies a provider-neutral Agent brief through real
+onboarding, bugfix, and feature tasks. The released installation, governed
+context, reference extensions, deterministic replay, task verification, and
+owned uninstall gates pass without source or `.aos` control-data mutation.
+Hosted Windows/Ubuntu portability closeout remains pending. See
+[P6.4 Controlled Adoption Pilot](evidence/P6.4-CONTROLLED-ADOPTION-PILOT.md).
 
 Validate the complete design and standards governance with:
 
