@@ -1,8 +1,8 @@
 # AOS Roadmap
 
 **Status:** Canonical delivery sequence
-**Current maturity:** P6 — Extension Ecosystem complete at declarative-local scope
-**Next eligible phase:** P7 only after a measured scale need
+**Current maturity:** P6 complete; P6.2 production-like qualification is active
+**Next eligible phase:** P7 only after qualification evidence and a measured scale need
 **Maturity model:** Evidence-gated capabilities, not promised release dates
 
 ## Roadmap rules
@@ -302,6 +302,25 @@ repository: 12 governed Extension Runs, zero normalized replay drift, and zero
 source-repository mutations. Evidence is recorded in
 [`P6.1 Adoption and Hardening Review`](evidence/P6.1-ADOPTION-HARDENING-REVIEW.md).
 This evidence does not activate P7 or claim production-like readiness.
+
+### P6.2 production-like qualification
+
+**Status:** `ACTIVE`
+
+P6.2 adds deterministic filesystem boundary injection, recovery of incomplete
+digest-bound Governance/Audit enable traces, extension-aware reconciliation,
+monotonic replay Run revisions, and an append-only installed-pilot metrics
+harness.
+
+Immediate local gates pass. The real duration gate requires at least seven
+elapsed days, seven passing samples, no failed samples, deterministic nested
+P6.1 replay, and zero source-repository mutation. Same-day CI uses a zero-day
+harness smoke only to verify portability; it cannot close the duration gate.
+Evidence is recorded in
+[`P6.2 Production-like Qualification`](evidence/P6.2-PRODUCTION-LIKE-QUALIFICATION.md).
+
+P7 remains ineligible without both completed qualification evidence and a
+measured performance, availability, or coordination bottleneck.
 
 ## P7 — Scale and Distributed Runtime
 

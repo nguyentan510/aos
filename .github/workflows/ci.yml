@@ -62,3 +62,11 @@ jobs:
       - name: P6.1 repeated snapshot pilot gate
         shell: pwsh
         run: ./scripts/run_p6_1_multi_repository_pilot.ps1 -RepositoryPath $PWD -Repeats 2
+
+      - name: P6.2 filesystem fault-injection gate
+        shell: pwsh
+        run: ./scripts/run_p6_2_fault_injection_gate.ps1
+
+      - name: P6.2 installed-pilot harness smoke
+        shell: pwsh
+        run: ./scripts/run_p6_2_installed_pilot_sample.ps1 -RepositoryPath $PWD -SamplesPerRun 1 -MinimumDurationDays 0 -MinimumSamples 1 -PilotId ci-harness-smoke

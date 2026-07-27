@@ -927,8 +927,14 @@ if (p2Start < 0 || p3Start < 0 || p3Start <= p2Start) {
 if (!roadmap.includes("**Current maturity:** P6")) {
   errors.push("ROADMAP.md: current maturity must identify the active P6 slice");
 }
-if (!roadmap.includes("**Next eligible phase:** P7 only after a measured scale need")) {
-  errors.push("ROADMAP.md: P7 must remain gated by a measured scale need");
+if (
+  !roadmap.includes(
+    "**Next eligible phase:** P7 only after qualification evidence and a measured scale need",
+  )
+) {
+  errors.push(
+    "ROADMAP.md: P7 must remain gated by qualification evidence and a measured scale need",
+  );
 }
 
 const p2Review = readUtf8("evidence/P2-READ-ONLY-CLI-REVIEW.md");

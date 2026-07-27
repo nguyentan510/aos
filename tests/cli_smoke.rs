@@ -1768,6 +1768,174 @@ fn interrupted_enable_recovers_from_an_existing_manifest_snapshot() {
 }
 
 #[test]
+fn p6_2_enable_recovers_when_governance_or_audit_trace_is_interrupted() {
+    for blocked_directory in ["governance", "audit"] {
+        let repository = temp_repository(&format!("p6-2-{blocked_directory}-fault"));
+        initialize_repository(&repository);
+        let manifest = copy_reference_manifest(&repository, "aos.reference.repository");
+        let blocked_path = repository.join(".aos").join(blocked_directory);
+        if blocked_path.is_dir() {
+            fs::remove_dir_all(&blocked_path).expect("empty trace directory should be removable");
+        }
+        fs::write(&blocked_path, b"fault injection: expected directory")
+            .expect("trace directory fault should be injected");
+
+        let interrupted = enable_extension(&repository, &manifest);
+        assert_eq!(
+            interrupted.status.code(),
+            Some(8),
+            "{blocked_directory} interruption should be unknown: {}",
+            stdout(&interrupted)
+        );
+        assert!(
+            repository
+                .join(".aos/extensions/lifecycle/aos.reference.repository.r2.json")
+                .exists(),
+            "enabled lifecycle should expose the partial transaction"
+        );
+
+        fs::remove_file(&blocked_path).expect("trace fault should be removable");
+        let recovered = enable_extension(&repository, &manifest);
+        assert!(
+            recovered.status.success(),
+            "{blocked_directory} trace should recover: {}",
+            stdout(&recovered)
+        );
+        assert!(
+            stdout(&recovered).contains("extension:incomplete-trace-recovered"),
+            "recovery must be explicit in evidence"
+        );
+
+        let trace_contains_digest = |directory: &str, event_field: &str| {
+            fs::read_dir(repository.join(".aos").join(directory))
+                .expect("trace directory should exist")
+                .filter_map(Result::ok)
+                .filter_map(|entry| fs::read_to_string(entry.path()).ok())
+                .any(|body| {
+                    body.contains(&format!("\"{event_field}\":\"extension_enable\""))
+                        && body.contains("\"manifest_digest\":\"")
+                })
+        };
+        assert!(trace_contains_digest("governance", "decision_type"));
+        assert!(trace_contains_digest("audit", "event"));
+
+        let idempotent = enable_extension(&repository, &manifest);
+        assert!(idempotent.status.success());
+        assert!(stdout(&idempotent).contains("AOS-EXTENSION-ALREADY-ENABLED"));
+        fs::remove_dir_all(repository).expect("temporary repository should be removable");
+    }
+}
+
+#[test]
+fn p6_2_manifest_and_lifecycle_write_faults_are_recoverable() {
+    for boundary in ["manifests", "lifecycle"] {
+        let repository = temp_repository(&format!("p6-2-{boundary}-fault"));
+        initialize_repository(&repository);
+        let manifest = copy_reference_manifest(&repository, "aos.reference.repository");
+        let blocked_path = repository.join(".aos/extensions").join(boundary);
+        fs::create_dir_all(
+            blocked_path
+                .parent()
+                .expect("extension boundary should have a parent"),
+        )
+        .expect("extension root should exist");
+        if blocked_path.is_dir() {
+            fs::remove_dir_all(&blocked_path).expect("empty boundary should be removable");
+        }
+        fs::write(&blocked_path, b"fault injection: expected directory")
+            .expect("extension boundary fault should be injected");
+
+        let interrupted = enable_extension(&repository, &manifest);
+        assert_eq!(
+            interrupted.status.code(),
+            Some(8),
+            "{boundary} interruption should be unknown: {}",
+            stdout(&interrupted)
+        );
+        fs::remove_file(&blocked_path).expect("extension boundary fault should be removable");
+
+        let recovered = enable_extension(&repository, &manifest);
+        assert!(
+            recovered.status.success(),
+            "{boundary} boundary should recover: {}",
+            stdout(&recovered)
+        );
+        assert!(
+            repository
+                .join(".aos/extensions/manifests/aos.reference.repository@1.0.0.json")
+                .exists()
+        );
+        assert!(
+            repository
+                .join(".aos/extensions/lifecycle/aos.reference.repository.r2.json")
+                .exists()
+        );
+        fs::remove_dir_all(repository).expect("temporary repository should be removable");
+    }
+}
+
+#[test]
+fn p6_2_extension_result_write_fault_blocks_then_reconciles() {
+    let repository = temp_repository("p6-2-result-fault");
+    initialize_repository(&repository);
+    let manifest = copy_reference_manifest(&repository, "aos.reference.repository");
+    assert!(enable_extension(&repository, &manifest).status.success());
+    record_knowledge(&repository, "p6-2-context");
+    let create = create_extension_work(
+        &repository,
+        "p6-2-result-work",
+        "p6-2-context",
+        "aos.reference.repository@1.0.0",
+        "aos.reference.repository.summary",
+    );
+    assert!(create.status.success(), "{}", stdout(&create));
+    assert!(
+        authorize_work(&repository, "p6-2-result-work")
+            .status
+            .success()
+    );
+
+    let results_path = repository.join(".aos/extensions/results");
+    fs::write(&results_path, b"fault injection: expected directory")
+        .expect("result boundary fault should be injected");
+    let interrupted = run_work(&repository, "p6-2-result-work");
+    assert_eq!(
+        interrupted.status.code(),
+        Some(4),
+        "{}",
+        stdout(&interrupted)
+    );
+    assert!(stdout(&interrupted).contains("\"status\":\"blocked\""));
+    assert!(stdout(&interrupted).contains("\"reconciliation\":\"required\""));
+    assert!(stdout(&interrupted).contains("extension:result-reconciliation-required"));
+
+    fs::remove_file(&results_path).expect("result boundary fault should be removable");
+    let reconcile = run_aos(&[
+        "work",
+        "reconcile",
+        repository.to_str().expect("temporary path should be UTF-8"),
+        "--apply",
+        "--authority=project-reviewer",
+        "--work-id=p6-2-result-work",
+        "--result=resolved",
+        "--evidence=filesystem-boundary-restored",
+        "--format=json",
+    ]);
+    assert!(reconcile.status.success(), "{}", stdout(&reconcile));
+    assert!(stdout(&reconcile).contains("AOS-RECONCILIATION-RECORDED"));
+
+    let replay = run_work(&repository, "p6-2-result-work");
+    assert!(replay.status.success(), "{}", stdout(&replay));
+    assert!(
+        repository
+            .join(".aos/extensions/results/p6-2-result-work.r2.json")
+            .exists(),
+        "reconciled replay should persist a new immutable result revision"
+    );
+    fs::remove_dir_all(repository).expect("temporary repository should be removable");
+}
+
+#[test]
 fn extension_authoring_template_passes_runtime_validation_without_mutation() {
     let repository = temp_repository("p6-authoring-template");
     initialize_repository(&repository);

@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P6 complete at governed declarative-local scope; P7 remains planned
+**Status:** P6 complete; P6.2 production-like qualification is active; P7 remains planned
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -153,6 +153,15 @@ Extension Runs with zero normalized replay drift and no source-repository
 mutation. See
 [P6.1 Adoption and Hardening Review](evidence/P6.1-ADOPTION-HARDENING-REVIEW.md).
 This strengthens P6 evidence without activating P7.
+
+P6.2 is now an active production-like qualification follow-on. Filesystem
+fault-injection and governed recovery pass locally, including repair of an
+interrupted enable trace and replay of a reconciled extension Work with a new
+immutable Run revision. The installed-pilot harness has started collecting
+latency and control-data metrics over the same three repositories. Its
+seven-day duration gate remains `ACTIVE`; production-like-runtime-ready is not
+claimed. See
+[P6.2 Production-like Qualification](evidence/P6.2-PRODUCTION-LIKE-QUALIFICATION.md).
 
 Validate the complete design and standards governance with:
 

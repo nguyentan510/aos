@@ -310,6 +310,7 @@ fn enable(summary: &RepositorySummary, root: &Path, input: ExtensionInput) -> Qu
         Err(error) => return extension_failure(summary, error),
     };
 
+    let mut recovering_incomplete_trace = false;
     if let Some(current) = latest_lifecycle(root, &bundle.manifest.id)
         && current.status == "enabled"
         && !current.retired
@@ -326,14 +327,22 @@ fn enable(summary: &RepositorySummary, root: &Path, input: ExtensionInput) -> Qu
             );
         }
         if current.manifest_digest == bundle.digest {
-            return success(
-                summary,
-                "AOS-EXTENSION-ALREADY-ENABLED",
-                "extension is already enabled with the same immutable manifest digest",
-                vec!["extension:idempotent-enable".to_string()],
-                json!({"lifecycle": current, "manifest": bundle.manifest}),
-                None,
-            );
+            if has_complete_enable_trace(
+                root,
+                &bundle.manifest.id,
+                &bundle.manifest.version,
+                &bundle.digest,
+            ) {
+                return success(
+                    summary,
+                    "AOS-EXTENSION-ALREADY-ENABLED",
+                    "extension is already enabled with a complete Governance and Audit trace",
+                    vec!["extension:idempotent-enable".to_string()],
+                    json!({"lifecycle": current, "manifest": bundle.manifest}),
+                    None,
+                );
+            }
+            recovering_incomplete_trace = true;
         }
     }
 
@@ -388,7 +397,11 @@ fn enable(summary: &RepositorySummary, root: &Path, input: ExtensionInput) -> Qu
         principal,
         evidence,
         timestamp,
-        "manifest and compatibility validated",
+        if recovering_incomplete_trace {
+            "recovered incomplete enable trace and revalidated manifest"
+        } else {
+            "manifest and compatibility validated"
+        },
     );
     let validated_relative = lifecycle_relative_for(&bundle.manifest.id, validated_revision);
     if let Err(write_error) =
@@ -414,7 +427,11 @@ fn enable(summary: &RepositorySummary, root: &Path, input: ExtensionInput) -> Qu
         principal,
         evidence,
         timestamp + 1,
-        "explicit Governance enablement",
+        if recovering_incomplete_trace {
+            "recovered incomplete Governance or Audit trace"
+        } else {
+            "explicit Governance enablement"
+        },
     );
     let enabled_relative = lifecycle_relative_for(&bundle.manifest.id, enabled_revision);
     if let Err(write_error) =
@@ -435,6 +452,7 @@ fn enable(summary: &RepositorySummary, root: &Path, input: ExtensionInput) -> Qu
         root,
         &bundle.manifest.id,
         &bundle.manifest.version,
+        &bundle.digest,
         "extension_enable",
         principal,
         evidence,
@@ -465,15 +483,19 @@ fn enable(summary: &RepositorySummary, root: &Path, input: ExtensionInput) -> Qu
         audit_evidence: vec![format!("evidence:{evidence}")],
         timestamp: timestamp.to_string(),
     };
+    let mut enable_evidence = vec![
+        "extension:manifest-snapshot".to_string(),
+        "extension:lifecycle-enabled".to_string(),
+        "extension:governance-recorded".to_string(),
+    ];
+    if recovering_incomplete_trace {
+        enable_evidence.push("extension:incomplete-trace-recovered".to_string());
+    }
     success(
         summary,
         "AOS-EXTENSION-ENABLED",
         "extension enabled under explicit Governance authority",
-        vec![
-            "extension:manifest-snapshot".to_string(),
-            "extension:lifecycle-enabled".to_string(),
-            "extension:governance-recorded".to_string(),
-        ],
+        enable_evidence,
         json!({"manifest": bundle.manifest, "lifecycle": enabled}),
         Some(operation),
     )
@@ -572,6 +594,7 @@ fn transition(summary: &RepositorySummary, root: &Path, input: ExtensionInput) -
         root,
         &current.id,
         &current.version,
+        &current.manifest_digest,
         &format!("extension_{}", action.as_str()),
         principal,
         evidence,
@@ -816,6 +839,7 @@ pub fn quarantine_for_safety(
         root,
         extension_id,
         version,
+        &next.manifest_digest,
         "extension_auto_quarantined",
         "aos-runtime",
         "policy:fail-closed",
@@ -1401,6 +1425,44 @@ fn latest_lifecycle(root: &Path, extension_id: &str) -> Option<LifecycleRecord> 
         .max_by_key(|record| record.revision)
 }
 
+fn has_complete_enable_trace(
+    root: &Path,
+    extension_id: &str,
+    version: &str,
+    manifest_digest: &str,
+) -> bool {
+    let subject = format!("extension:{extension_id}@{version}");
+    let governance_complete =
+        directory_has_json_match(&root.join(".aos").join("governance"), |record| {
+            record.get("decision_type").and_then(Value::as_str) == Some("extension_enable")
+                && record.get("subject").and_then(Value::as_str) == Some(subject.as_str())
+                && record.get("manifest_digest").and_then(Value::as_str) == Some(manifest_digest)
+                && record.get("outcome").and_then(Value::as_str) == Some("enabled")
+        });
+    let audit_complete = directory_has_json_match(&root.join(".aos").join("audit"), |record| {
+        record.get("event").and_then(Value::as_str) == Some("extension_enable")
+            && record.get("subject").and_then(Value::as_str) == Some(subject.as_str())
+            && record.get("manifest_digest").and_then(Value::as_str) == Some(manifest_digest)
+            && record.get("outcome").and_then(Value::as_str) == Some("recorded")
+    });
+    governance_complete && audit_complete
+}
+
+fn directory_has_json_match(directory: &Path, predicate: impl Fn(&Value) -> bool) -> bool {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return false;
+    };
+    entries.flatten().any(|entry| {
+        if entry.path().extension().and_then(|value| value.to_str()) != Some("json") {
+            return false;
+        }
+        fs::read_to_string(entry.path())
+            .ok()
+            .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+            .is_some_and(|record| predicate(&record))
+    })
+}
+
 fn next_lifecycle_revision(root: &Path, extension_id: &str) -> u64 {
     latest_lifecycle(root, extension_id)
         .map(|record| record.revision + 1)
@@ -1440,6 +1502,7 @@ fn governance_and_audit(
     root: &Path,
     extension_id: &str,
     version: &str,
+    manifest_digest: &str,
     event: &str,
     principal: &str,
     evidence: &str,
@@ -1457,6 +1520,7 @@ fn governance_and_audit(
         "revision": 1,
         "contract_version": EXTENSION_CONTRACT_VERSION,
         "subject": format!("extension:{extension_id}@{version}"),
+        "manifest_digest": manifest_digest,
         "decision_type": event,
         "responsible_principal": principal,
         "decision_instant_unix": timestamp,
@@ -1469,6 +1533,7 @@ fn governance_and_audit(
         root,
         extension_id,
         version,
+        manifest_digest,
         event,
         principal,
         &format!("governance:{decision_id}"),
@@ -1483,6 +1548,7 @@ fn audit_event(
     root: &Path,
     extension_id: &str,
     version: &str,
+    manifest_digest: &str,
     event: &str,
     principal: &str,
     authority_basis: &str,
@@ -1499,6 +1565,7 @@ fn audit_event(
         "id": filename,
         "revision": 1,
         "subject": format!("extension:{extension_id}@{version}"),
+        "manifest_digest": manifest_digest,
         "event": event,
         "principal": principal,
         "authority_basis": authority_basis,

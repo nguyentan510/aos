@@ -891,7 +891,7 @@ fn run(summary: &RepositorySummary, root: &Path, input: WorkInput) -> QueryResul
         );
     }
     let timestamp = unix_timestamp();
-    let run_revision = next_revision(root, "runs", work_id);
+    let run_revision = next_revision(root, "runs", &format!("{work_id}-run"));
     let run_status = match result {
         "succeeded" => "succeeded",
         "failed" => "failed",
@@ -1167,7 +1167,7 @@ fn run_extension(
     }
 
     let timestamp = unix_timestamp();
-    let run_revision = next_revision(root, "runs", &work.id);
+    let run_revision = next_revision(root, "runs", &format!("{}-run", work.id));
     let execution = extension::execute_for_work(
         root,
         &extension_reference,
@@ -1467,14 +1467,40 @@ fn reconcile(summary: &RepositorySummary, root: &Path, input: WorkInput) -> Quer
     }
     let timestamp = unix_timestamp();
     let decision_id = format!("reconcile-{work_id}-{timestamp}");
+    let previous_authority_basis = extract_string(&work.raw, "authority_basis")
+        .unwrap_or_else(|| "governance:unknown".to_string());
+    let extension_binding = match (
+        extract_string(&work.raw, "extension_reference"),
+        extract_string(&work.raw, "extension_manifest_digest"),
+        extract_string(&work.raw, "capability_reference"),
+        extract_string(&work.raw, "resource_scope"),
+    ) {
+        (
+            Some(extension_reference),
+            Some(manifest_digest),
+            Some(capability),
+            Some(resource_scope),
+        ) => {
+            format!(
+                "\"extension_reference\":\"{}\",\"extension_manifest_digest\":\"{}\",\"capability_reference\":\"{}\",\"resource_scope\":\"{}\",",
+                escape_json(&extension_reference),
+                escape_json(&manifest_digest),
+                escape_json(&capability),
+                escape_json(&resource_scope),
+            )
+        }
+        _ => String::new(),
+    };
     let decision = format!(
-        "{{\"kind\":\"Governance\",\"id\":\"{}\",\"revision\":\"1\",\"contract_version\":\"AOS-SPEC-001\",\"subject\":\"work:{}\",\"decision_type\":\"reconciliation\",\"responsible_principal\":\"{}\",\"decision_instant_unix\":\"{}\",\"outcome\":\"{}\",\"evidence_reference\":\"{}\",\"prior_status\":\"blocked\",\"next_status\":\"{}\"}}",
+        "{{\"kind\":\"Governance\",\"id\":\"{}\",\"revision\":\"1\",\"contract_version\":\"AOS-SPEC-001\",\"subject\":\"work:{}\",\"decision_type\":\"reconciliation\",\"responsible_principal\":\"{}\",\"decision_instant_unix\":\"{}\",\"outcome\":\"{}\",\"evidence_reference\":\"{}\",\"previous_authority_basis\":\"{}\",{}\"prior_status\":\"blocked\",\"next_status\":\"{}\"}}",
         decision_id,
         work_id,
         escape_json(principal),
         timestamp,
         result,
         escape_json(evidence),
+        escape_json(&previous_authority_basis),
+        extension_binding,
         if result == "resolved" {
             "authorized"
         } else {
