@@ -407,6 +407,11 @@ reported explicitly and prevents interpreting total-token reduction as an
 exact billing reduction. Evidence is recorded in
 [`P6.5 Agent Efficiency Qualification`](evidence/P6.5-AGENT-EFFICIENCY-QUALIFICATION.md).
 
+**Closeout:** Passed on 2026-07-27. GitHub Actions run `30280170417`
+passes Windows and Ubuntu for implementation commit
+`ccaedf8b1203202e9fa26a8bf7d397332558a857`, including P6.4 regression and
+P6.5 deterministic evaluator gates.
+
 P6.5 does not activate P7 or change the separate P6.2 real-duration gate.
 
 ## P7 — Scale and Distributed Runtime

@@ -38,6 +38,7 @@ requireText("scripts/evaluate_p6_5_agent_efficiency_repeats.ps1", [
 requireText("evidence/P6.5-AGENT-EFFICIENCY-QUALIFICATION.md", [
   "**Status:** PASS",
   "p6-5-evaluation-20260727T152757Z",
+  "30280170417",
   "46.284%",
   "Uncached input",
   "AOS_P6_5_AGENT_EFFICIENCY_OK",
