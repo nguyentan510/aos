@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P6, P6.3 installation/DX, and P6.4 controlled adoption complete; P6.2 qualification remains active; P7 remains planned
+**Status:** P6, P6.3 installation/DX, P6.4 controlled adoption, and P6.5 Agent efficiency complete; P6.2 qualification remains active; P7 remains planned
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -219,6 +219,13 @@ context, reference extensions, deterministic replay, task verification, and
 owned uninstall gates pass without source or `.aos` control-data mutation.
 Hosted Windows/Ubuntu portability also passes. See
 [P6.4 Controlled Adoption Pilot](evidence/P6.4-CONTROLLED-ADOPTION-PILOT.md).
+
+P6.5 Agent efficiency keeps the model, repository snapshot, and tasks fixed
+while adding a bounded provider-neutral consumer capsule. Across two repeats,
+task success remains 3/3 and average total input tokens fall 46.284%, commands
+fall 45.455%, and elapsed time falls 25.708%. Uncached-token behavior is
+reported separately and no provider billing reduction is claimed. See
+[P6.5 Agent Efficiency Qualification](evidence/P6.5-AGENT-EFFICIENCY-QUALIFICATION.md).
 
 Validate the complete design and standards governance with:
 

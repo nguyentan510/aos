@@ -11,6 +11,7 @@ const validators = [
   "validate-p6-2-production-like-qualification.mjs",
   "validate-p6-3-installation-dx.mjs",
   "validate-p6-4-controlled-adoption.mjs",
+  "validate-p6-5-agent-efficiency.mjs",
 ];
 
 for (const validator of validators) {

@@ -1,0 +1,64 @@
+{
+  "schema_version": "AOS-P6-5-AGENT-EFFICIENCY-1",
+  "baseline": {
+    "totals": {
+      "scenario_count": 3,
+      "task_success_count": 3,
+      "input_tokens": 1000,
+      "cached_input_tokens": 800,
+      "uncached_input_tokens": 200,
+      "output_tokens": 100,
+      "command_count": 10,
+      "mcp_call_count": 3,
+      "elapsed_seconds": 100
+    }
+  },
+  "optimized": {
+    "totals": {
+      "scenario_count": 3,
+      "task_success_count": 3,
+      "input_tokens": 610,
+      "cached_input_tokens": 395,
+      "uncached_input_tokens": 215,
+      "output_tokens": 72,
+      "command_count": 6,
+      "mcp_call_count": 0,
+      "elapsed_seconds": 77
+    },
+    "runs": [
+      {
+        "scenario": "onboarding",
+        "verification_passed": true,
+        "control_data_unchanged": true,
+        "source_scope_preserved": true,
+        "batched_source_read": true,
+        "single_verification_call": true,
+        "bounded_tool_loop": true,
+        "forbidden_command_scope": false,
+        "mcp_call_count": 0
+      },
+      {
+        "scenario": "bugfix",
+        "verification_passed": true,
+        "control_data_unchanged": true,
+        "source_scope_preserved": true,
+        "batched_source_read": true,
+        "single_verification_call": true,
+        "bounded_tool_loop": true,
+        "forbidden_command_scope": false,
+        "mcp_call_count": 0
+      },
+      {
+        "scenario": "feature",
+        "verification_passed": true,
+        "control_data_unchanged": true,
+        "source_scope_preserved": true,
+        "batched_source_read": true,
+        "single_verification_call": true,
+        "bounded_tool_loop": true,
+        "forbidden_command_scope": false,
+        "mcp_call_count": 0
+      }
+    ]
+  }
+}

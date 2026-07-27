@@ -388,6 +388,27 @@ and Ubuntu runners for implementation commit
 P6.2 remains active on its separate pinned real-duration lane, and P7 remains
 planned pending a measured scaling bottleneck.
 
+### P6.5 Agent efficiency qualification
+
+**Status:** `COMPLETE`
+
+P6.5 keeps AOS Core unchanged and optimizes the first consumer adapter. A
+provider-neutral capsule bounds source expansion, batches the initial read,
+combines final verification, preserves `.aos`, and removes irrelevant MCP
+discovery from the task loop.
+
+Across two repeats of the same onboarding, bugfix, and feature tasks, task
+success remains 3/3 per repeat. Average total input tokens fall 46.284%,
+commands fall 45.455%, output tokens fall 26.633%, and elapsed time falls
+25.708%. Optimized input-token drift is 0.184%.
+
+Uncached input increases 7.209% because provider cache state differs; this is
+reported explicitly and prevents interpreting total-token reduction as an
+exact billing reduction. Evidence is recorded in
+[`P6.5 Agent Efficiency Qualification`](evidence/P6.5-AGENT-EFFICIENCY-QUALIFICATION.md).
+
+P6.5 does not activate P7 or change the separate P6.2 real-duration gate.
+
 ## P7 — Scale and Distributed Runtime
 
 **Status:** `PLANNED`

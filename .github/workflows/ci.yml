@@ -90,3 +90,12 @@ jobs:
             Join-Path $PWD 'target/debug/aos'
           }
           ./scripts/run_p6_4_controlled_adoption_pilot.ps1 -AosBinary $binary
+
+      - name: P6.5 efficiency evaluator smoke
+        shell: pwsh
+        run: |
+          $results = @(
+            'tests/fixtures/p6-5-efficiency/result-1.json',
+            'tests/fixtures/p6-5-efficiency/result-2.json'
+          )
+          ./scripts/evaluate_p6_5_agent_efficiency_repeats.ps1 -ResultPath $results
