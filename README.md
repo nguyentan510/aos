@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P5 value and controlled pilot pass; hosted CI closeout blocked
+**Status:** P5 complete; P6 Extension Ecosystem active
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -83,8 +83,9 @@ consequences are recorded under [adr/](adr/README.md).
 
 The project has completed **P0 — Design Foundation**, **P1 — Standards and
 Contracts**, **P2 — Read-only Project Intelligence CLI**, **P3 — Transactional
-Repository Initialization**, and **P4 — Knowledge and Context**. The accepted
-contracts are
+Repository Initialization**, **P4 — Knowledge and Context**, and **P5 —
+Work, Protocol, and Governance**. **P6 — Extension Ecosystem** is the active
+delivery phase. The accepted contracts are
 [`AOS-SPEC-001 — Information Model`](specifications/001-information-model.md),
 [`AOS-SPEC-002 — Repository`](specifications/002-repository.md),
 [`AOS-SPEC-003 — Protocol`](specifications/003-protocol.md),
@@ -125,16 +126,16 @@ and `aos context` selects provider-independent context while explaining every
 withheld stale, unknown, proposed, non-active, over-limit, or budget-excluded
 record. Consumers may request a compact profile and an explicit byte budget.
 
-The P5 vertical slice is implementation-aligned and runtime-smoke-ready. It
+P5 is complete and runtime-smoke-ready. Its vertical slice
 records immutable Work, Protocol, Governance, Run, and Audit data and exposes
 `aos work create|authorize|run|reconcile|show`. Its evidence is recorded in
 [P5 Governed Work Review](evidence/P5-GOVERNED-WORK-REVIEW.md) and
 [P5 Controlled Downstream Pilot](evidence/P5-CONTROLLED-DOWNSTREAM-PILOT.md).
-P5 phase
-closeout remains deferred only because GitHub-hosted CI cannot start while the
-account has a billing lock. The P4 value benchmark and controlled downstream
-pilot pass; local CI-equivalent gates pass. `v0.1.0-rc.1` is a local-verified
-prerelease and is not claimed as CI-qualified or production-ready.
+The P4 value benchmark, controlled downstream pilot, local CI-equivalent gates,
+and GitHub-hosted Windows and Ubuntu CI pass. P6 now focuses on versioned
+extension discovery, compatibility, capability isolation, and proof that
+extensions cannot bypass Governance. Production-like-runtime-ready and
+production-ready remain explicitly unclaimed.
 
 Validate the complete design and standards governance with:
 

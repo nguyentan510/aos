@@ -1,8 +1,8 @@
 # P5 Governed Work Vertical Slice Review
 
-**Status:** VALUE/PILOT PASS; HOSTED CI BLOCKED
+**Status:** COMPLETE
 **Date:** 2026-07-27
-**Decision:** Local governed-work vertical slice is implementation-aligned and runtime-smoke-ready
+**Decision:** P5 exit gate passed; P6 is eligible to start
 
 ## Review objective
 
@@ -26,10 +26,10 @@ and expose an end-to-end audit trace.
 - The controlled downstream pilot emits
   `AOS_CONTROLLED_DOWNSTREAM_PILOT_OK`.
 
-The P5 implementation, product-value gate, and downstream pilot are verified.
-Roadmap closeout remains deferred only because GitHub Actions rejected both
-hosted runners before executing any step with the annotation
-`account is locked due to a billing issue`. Local CI-equivalent gates pass.
+The P5 implementation, product-value gate, downstream pilot, local
+CI-equivalent gates, and GitHub-hosted CI are verified. GitHub Actions run
+`30244142128` attempt 2 executed the Windows and Ubuntu jobs successfully on
+commit `be558069df10a4182be12252a1c95008bff4792e`.
 
 ## Implemented vertical slice
 
@@ -101,18 +101,23 @@ design/specification/governance validators: PASS
 AOS_P5_HARDENING_OK: PASS
 controlled pilot: pilot-20260727T065102Z PASS
 release candidate: v0.1.0-rc.1 local-verified
-hosted CI: BLOCKED before execution by GitHub account billing lock
+hosted CI: run 30244142128 attempt 2 PASS
 ```
 
 Hosted CI evidence:
 
 ```text
-GitHub Actions run: 30238648767
-commit: 92a9f926fb75107515c449ba3f5af8934415e608
-Windows job: not started
-Ubuntu job: not started
-annotation: The job was not started because your account is locked due to a billing issue.
-prerelease: v0.1.0-rc.1 (local-verified, not CI-qualified)
+GitHub Actions run: 30244142128
+attempt: 2
+commit: be558069df10a4182be12252a1c95008bff4792e
+Windows job 89913650517: PASS
+Ubuntu job 89913650553: PASS
+Rust unit tests: 8/8 on Windows and Ubuntu
+CLI process tests: 30/30 on Windows and Ubuntu
+Windows P5 governed Work smoke: PASS
+Windows P5 hardening gate: PASS
+design/specification/governance validators: PASS on Windows and Ubuntu
+prior billing lock: RESOLVED
 ```
 
 ## Maturity decision
@@ -123,5 +128,5 @@ Implementation-aligned:          PASS
 Runtime-smoke-ready:             PASS
 Production-like-runtime-ready:   NOT CLAIMED
 Production-ready:                NOT CLAIMED
-P5 roadmap closeout:             DEFERRED pending hosted CI execution
+P5 roadmap closeout:             PASS
 ```

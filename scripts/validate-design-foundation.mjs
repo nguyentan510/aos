@@ -924,11 +924,11 @@ if (p2Start < 0 || p3Start < 0 || p3Start <= p2Start) {
   }
 }
 
-if (!roadmap.includes("**Current maturity:** P5")) {
-  errors.push("ROADMAP.md: current maturity must identify the active P5 slice");
+if (!roadmap.includes("**Current maturity:** P6")) {
+  errors.push("ROADMAP.md: current maturity must identify the active P6 slice");
 }
-if (!roadmap.includes("**Next eligible phase:** P6 only after P5 closeout")) {
-  errors.push("ROADMAP.md: P6 must remain gated by P5 closeout");
+if (!roadmap.includes("**Next eligible phase:** P7 only after P6 closeout")) {
+  errors.push("ROADMAP.md: P7 must remain gated by P6 closeout");
 }
 
 const p2Review = readUtf8("evidence/P2-READ-ONLY-CLI-REVIEW.md");
@@ -1001,14 +1001,26 @@ if (p4Start < 0 || p5Start < 0 || p5Start <= p4Start) {
   if (!p4Section.includes("evidence/P4-KNOWLEDGE-CONTEXT-REVIEW.md")) {
     errors.push("ROADMAP.md: P4 closeout evidence link is missing");
   }
-  if (!p5Section.includes("**Status:** `ACTIVE`")) {
-    errors.push("ROADMAP.md: P5 must be ACTIVE while hosted CI remains blocked");
+  if (!p5Section.includes("**Status:** `COMPLETE`")) {
+    errors.push("ROADMAP.md: P5 must be COMPLETE after hosted CI closeout");
   }
   if (!p5Section.includes("evidence/P5-GOVERNED-WORK-REVIEW.md")) {
     errors.push("ROADMAP.md: P5 implementation evidence link is missing");
   }
-  if (!p5Section.includes("hosted CI")) {
-    errors.push("ROADMAP.md: P5 closeout must record the hosted CI blocker");
+  if (!p5Section.includes("30244142128") ||
+      !p5Section.includes("attempt 2")) {
+    errors.push("ROADMAP.md: P5 closeout must record successful hosted CI evidence");
+  }
+}
+
+const p6Start = roadmap.indexOf("## P6 ");
+const p7Start = roadmap.indexOf("## P7 ");
+if (p6Start < 0 || p7Start < 0 || p7Start <= p6Start) {
+  errors.push("ROADMAP.md: P6/P7 ordering is missing");
+} else {
+  const p6Section = roadmap.slice(p6Start, p7Start);
+  if (!p6Section.includes("**Status:** `ACTIVE`")) {
+    errors.push("ROADMAP.md: P6 must be ACTIVE after P5 closeout");
   }
 }
 
@@ -1038,8 +1050,11 @@ for (const command of ["aos knowledge", "aos state", "aos context"]) {
 }
 
 const p5Review = readUtf8("evidence/P5-GOVERNED-WORK-REVIEW.md");
-if (!p5Review.includes("**Status:** VALUE/PILOT PASS; HOSTED CI BLOCKED")) {
-  errors.push("P5 review: value/pilot pass and hosted CI blocker truth is missing");
+if (!p5Review.includes("**Status:** COMPLETE") ||
+    !p5Review.includes("P5 roadmap closeout:             PASS") ||
+    !p5Review.includes("GitHub Actions run: 30244142128") ||
+    !p5Review.includes("attempt: 2")) {
+  errors.push("P5 review: successful hosted CI closeout truth is missing");
 }
 for (const marker of [
   "AOS_P5_GOVERNED_WORK_CONTRACT_OK",

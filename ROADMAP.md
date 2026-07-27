@@ -1,8 +1,8 @@
 # AOS Roadmap
 
 **Status:** Canonical delivery sequence
-**Current maturity:** P5 — governed Work vertical slice active
-**Next eligible phase:** P6 only after P5 closeout
+**Current maturity:** P6 — Extension Ecosystem active
+**Next eligible phase:** P7 only after P6 closeout and measured scale need
 **Maturity model:** Evidence-gated capabilities, not promised release dates
 
 ## Roadmap rules
@@ -208,7 +208,7 @@ provenance or authority.
 
 ## P5 — Work, Protocol, and Governance
 
-**Status:** `ACTIVE`
+**Status:** `COMPLETE`
 
 **Entry conditions**
 
@@ -243,16 +243,15 @@ provenance or authority.
 AOS can coordinate governed work without allowing runtime or providers to bypass
 project authority.
 
-**Closeout status:** Product-value and controlled-pilot gates pass. Closeout is
-deferred only until hosted CI can execute successfully; GitHub rejected both
-Windows and Ubuntu jobs before step execution because the account is locked by
-a billing issue. Local format, test, build, clippy, validators, P5 smoke, and
-hardening gates pass. P6 remains ineligible until this external CI gate is
-cleared and recorded.
+**Closeout:** Passed on 2026-07-27. Product-value, controlled-pilot, local
+format/test/build/clippy/validator gates, and P5 smoke/hardening gates pass.
+GitHub Actions run `30244142128` attempt 2 executed successfully on Windows and
+Ubuntu for commit `be558069df10a4182be12252a1c95008bff4792e`. P6 is now the
+active phase.
 
 ## P6 — Extension Ecosystem
 
-**Status:** `PLANNED`
+**Status:** `ACTIVE`
 
 **Entry conditions**
 
