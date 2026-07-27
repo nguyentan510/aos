@@ -54,3 +54,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: .\scripts\run_p5_hardening_gate.ps1
+
+      - name: P6 governed extension ecosystem smoke
+        shell: pwsh
+        run: ./scripts/run_p6_extension_ecosystem_smoke.ps1

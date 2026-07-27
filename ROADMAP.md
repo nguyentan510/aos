@@ -261,14 +261,27 @@ verified checksums. P6 is now the active phase.
 
 **Deliverables**
 
-- Versioned extension discovery and compatibility.
-- Capability declaration and isolation.
-- Reference extensions that prove language and provider neutrality.
+- Accepted declarative-local physical binding in ADR-0010.
+- Immutable versioned manifest snapshots and governed lifecycle revisions.
+- Capability intersection across Manifest, Protocol, Governance, Runtime
+  allowlist, and exact Repository scope.
+- Generic Repository and Rust reference extensions.
+- Proposed Extension Results traceable through Work, Run, Protocol,
+  Governance, context, input digest, verification, and Audit.
+- Windows/Ubuntu CI and an RC3 distribution containing both reference packages.
 
 **Verification evidence**
 
-- Compatibility, isolation, and failure tests.
-- Proof that extensions cannot redefine core semantics or bypass governance.
+- Contract, compatibility, dependency, lifecycle, replay, isolation, and
+  failure tests.
+- AOS and fixed-snapshot TRENUX process smokes.
+- Proof that extensions cannot redefine Core semantics, bypass Governance,
+  directly invoke capability code, widen resource scope, or lose provenance.
+
+**Current evidence:** Local implementation, both reference smokes, digest
+tamper quarantine, deterministic replay, and the TRENUX fixed-snapshot smoke
+pass. Hosted Windows/Ubuntu CI and `v0.1.0-rc.3` provenance remain the closeout
+gates.
 
 **Exit gate**
 

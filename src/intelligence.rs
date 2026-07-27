@@ -99,7 +99,7 @@ struct StoredRecord {
 struct RecordDocument<'a> {
     kind: RecordKind,
     id: &'a str,
-    root: &'a Path,
+    project_id: &'a str,
     revision: u64,
     subject: &'a str,
     content: &'a str,
@@ -502,10 +502,12 @@ pub fn record(input: RecordInput) -> QueryResult {
     }
     let revision = next_revision(&root, input.kind, &id);
     let timestamp = unix_timestamp();
+    let project_id = repository::project_id(&root)
+        .unwrap_or_else(|| format!("project-{:016x}", stable_hash(&repository.root)));
     let record = record_json(&RecordDocument {
         kind: input.kind,
         id: &id,
-        root: &root,
+        project_id: &project_id,
         revision,
         subject,
         content,
@@ -719,10 +721,10 @@ fn next_revision(root: &Path, kind: RecordKind, id: &str) -> u64 {
 
 fn record_json(document: &RecordDocument<'_>) -> String {
     let common = format!(
-        "\"kind\":\"{}\",\"id\":\"{}\",\"project_id\":\"project-{:016x}\",\"contract_version\":\"{}\",\"revision\":\"{}\",\"previous_revision\":{},\"owner\":\"project-owner\",\"producer\":\"aos-cli\",\"created_at_unix\":\"{}\",\"last_produced_at_unix\":\"{}\",\"authority\":\"proposed\",\"lifecycle\":\"active\",\"subject\":\"{}\",\"source_reference\":\"{}\",\"derived\":\"false\",\"authority_basis\":\"pending-governance\",\"authority_reference\":\"{}\"",
+        "\"kind\":\"{}\",\"id\":\"{}\",\"project_id\":\"{}\",\"contract_version\":\"{}\",\"revision\":\"{}\",\"previous_revision\":{},\"owner\":\"project-owner\",\"producer\":\"aos-cli\",\"created_at_unix\":\"{}\",\"last_produced_at_unix\":\"{}\",\"authority\":\"proposed\",\"lifecycle\":\"active\",\"subject\":\"{}\",\"source_reference\":\"{}\",\"derived\":\"false\",\"authority_basis\":\"pending-governance\",\"authority_reference\":\"{}\"",
         document.kind.as_str(),
         escape_json(document.id),
-        stable_hash(&document.root.to_string_lossy()),
+        escape_json(document.project_id),
         INFORMATION_CONTRACT_VERSION,
         document.revision,
         if document.revision > 1 {

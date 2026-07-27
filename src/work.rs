@@ -1,3 +1,4 @@
+use crate::extension;
 use crate::intelligence::QueryResult;
 use crate::model::{Diagnostic, OperationSummary, RepositorySummary, escape_json};
 use crate::repository;
@@ -51,6 +52,8 @@ pub struct WorkInput {
     pub evidence: Option<String>,
     pub result: Option<String>,
     pub reason: Option<String>,
+    pub extension_reference: Option<String>,
+    pub capability: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -179,15 +182,42 @@ fn create(summary: &RepositorySummary, root: &Path, input: WorkInput) -> QueryRe
         Err(result) => return result,
     };
     let protocol = input.protocol.as_deref().unwrap_or(VERIFY_PROTOCOL);
-    if protocol != VERIFY_PROTOCOL {
+    let (protocol_id, protocol_version, extension_binding) = if protocol == VERIFY_PROTOCOL {
+        if input.extension_reference.is_some() || input.capability.is_some() {
+            return failure(
+                summary,
+                2,
+                "AOS-WORK-EXTENSION-UNEXPECTED",
+                "extension fields require aos.extension.readonly@1.0.0",
+                "work:extension-binding",
+            );
+        }
+        (VERIFY_PROTOCOL_ID, "1.0.0", None)
+    } else if protocol == extension::EXTENSION_PROTOCOL {
+        let extension_reference =
+            match required(input.extension_reference.as_deref(), "extension reference") {
+                Ok(value) => value,
+                Err(result) => return result,
+            };
+        let capability = match required(input.capability.as_deref(), "extension capability") {
+            Ok(value) => value,
+            Err(result) => return result,
+        };
+        let binding =
+            match extension::resolve_for_work(root, extension_reference, capability, scope) {
+                Ok(value) => value,
+                Err(error) => return extension_error_result(summary, error),
+            };
+        (extension::EXTENSION_PROTOCOL_ID, "1.0.0", Some(binding))
+    } else {
         return failure(
             summary,
             4,
             "AOS-WORK-PROTOCOL-UNSUPPORTED",
-            "only aos.local.verify@1.0.0 is accepted by the P5 vertical slice",
+            "Work supports aos.local.verify@1.0.0 or aos.extension.readonly@1.0.0",
             "work:protocol-version",
         );
-    }
+    };
     if !input.apply {
         return QueryResult {
             repository: Some(summary.clone()),
@@ -240,14 +270,27 @@ fn create(summary: &RepositorySummary, root: &Path, input: WorkInput) -> QueryRe
 
     let timestamp = unix_timestamp();
     let revision = next_revision(root, "work", work_id);
+    let project_id = repository::project_id(root)
+        .unwrap_or_else(|| format!("project-{:016x}", stable_hash(&root.to_string_lossy())));
     let context_kind = input.context_kind.as_deref().unwrap_or("Knowledge");
+    let extension_fields = extension_binding
+        .as_ref()
+        .map(|binding| {
+            format!(
+                "\"extension_reference\":\"{}\",\"extension_manifest_digest\":\"{}\",\"capability_reference\":\"{}\",\"resource_scope\":\"{}\",",
+                escape_json(&binding.extension_reference),
+                escape_json(&binding.manifest_digest),
+                escape_json(&binding.capability_reference),
+                escape_json(&binding.resource_scope),
+            )
+        })
+        .unwrap_or_else(|| {
+            "\"extension_reference\":null,\"extension_manifest_digest\":null,\"capability_reference\":null,\"resource_scope\":null,".to_string()
+        });
     let content = format!(
-        "{{\"kind\":\"Work\",\"id\":\"{}\",\"project_id\":\"{}\",\"contract_version\":\"AOS-SPEC-001\",\"revision\":\"{}\",\"previous_revision\":null,\"owner\":\"{}\",\"producer\":\"aos-cli\",\"created_at_unix\":\"{}\",\"last_produced_at_unix\":\"{}\",\"authority\":\"proposed\",\"lifecycle\":\"active\",\"intent\":\"{}\",\"scope\":\"{}\",\"context_reference\":\"{}:{}@latest\",\"expected_output\":\"{}\",\"verification_requirements\":\"{}\",\"protocol_id\":\"{}\",\"protocol_version\":\"1.0.0\",\"status\":\"proposed\",\"failure_reason\":null,\"unresolved_condition\":null,\"verification_evidence\":null,\"authority_basis\":\"pending-governance\",\"authority_reference\":\"{}\"}}",
+        "{{\"kind\":\"Work\",\"id\":\"{}\",\"project_id\":\"{}\",\"contract_version\":\"AOS-SPEC-001\",\"revision\":\"{}\",\"previous_revision\":null,\"owner\":\"{}\",\"producer\":\"aos-cli\",\"created_at_unix\":\"{}\",\"last_produced_at_unix\":\"{}\",\"authority\":\"proposed\",\"lifecycle\":\"active\",\"intent\":\"{}\",\"scope\":\"{}\",\"context_reference\":\"{}:{}@latest\",\"expected_output\":\"{}\",\"verification_requirements\":\"{}\",\"protocol_id\":\"{}\",\"protocol_version\":\"{}\",{}\"status\":\"proposed\",\"failure_reason\":null,\"unresolved_condition\":null,\"verification_evidence\":null,\"authority_basis\":\"pending-governance\",\"authority_reference\":\"{}\"}}",
         escape_json(work_id),
-        escape_json(&format!(
-            "project-{:016x}",
-            stable_hash(&root.to_string_lossy())
-        )),
+        escape_json(&project_id),
         revision,
         escape_json(owner),
         timestamp,
@@ -268,7 +311,9 @@ fn create(summary: &RepositorySummary, root: &Path, input: WorkInput) -> QueryRe
                 .as_deref()
                 .unwrap_or("repository boundary and context integrity"),
         ),
-        VERIFY_PROTOCOL_ID,
+        protocol_id,
+        protocol_version,
+        extension_fields,
         escape_json(authority),
     );
     let relative = format!(".aos/work/{work_id}.r{revision}.json");
@@ -390,12 +435,32 @@ fn authorize(summary: &RepositorySummary, root: &Path, input: WorkInput) -> Quer
             "work:state-machine",
         );
     }
+    let protocol = extract_string(&work.raw, "protocol_id")
+        .map(|id| {
+            format!(
+                "{id}@{}",
+                extract_string(&work.raw, "protocol_version").unwrap_or_default()
+            )
+        })
+        .unwrap_or_default();
+    if !matches!(
+        protocol.as_str(),
+        VERIFY_PROTOCOL | extension::EXTENSION_PROTOCOL
+    ) {
+        return failure(
+            summary,
+            4,
+            "AOS-PROTOCOL-UNSUPPORTED",
+            "Work is bound to an unsupported Protocol version",
+            "protocol:unsupported-version",
+        );
+    }
     if extract_string(&work.raw, "scope").as_deref() != Some(".") {
         return failure(
             summary,
             7,
             "AOS-GOVERNANCE-SCOPE-MISMATCH",
-            "aos.local.verify@1.0.0 authorizes only the repository-local '.' scope",
+            "the accepted local Protocols authorize only repository-local '.' scope",
             "governance:scope-denied",
         );
     }
@@ -522,13 +587,58 @@ fn authorize(summary: &RepositorySummary, root: &Path, input: WorkInput) -> Quer
             "governance:stale-context-blocked",
         );
     }
-    if let Err(result) = ensure_protocol(root) {
+    if protocol == extension::EXTENSION_PROTOCOL {
+        let extension_reference =
+            extract_string(&work.raw, "extension_reference").unwrap_or_default();
+        let capability = extract_string(&work.raw, "capability_reference").unwrap_or_default();
+        let manifest_digest =
+            extract_string(&work.raw, "extension_manifest_digest").unwrap_or_default();
+        let binding =
+            match extension::resolve_for_work(root, &extension_reference, &capability, ".") {
+                Ok(value) => value,
+                Err(error) => return extension_error_result(summary, error),
+            };
+        if binding.manifest_digest != manifest_digest {
+            return failure(
+                summary,
+                4,
+                "AOS-EXTENSION-INTEGRITY-MISMATCH",
+                "Work binding digest no longer matches the enabled manifest snapshot",
+                "extension:integrity-mismatch",
+            );
+        }
+        if extract_string(&work.raw, "resource_scope").as_deref()
+            != Some(binding.resource_scope.as_str())
+        {
+            return failure(
+                summary,
+                7,
+                "AOS-EXTENSION-SCOPE-DENIED",
+                "Work resource scope no longer matches the enabled manifest capability",
+                "extension:scope-denied",
+            );
+        }
+    }
+    if let Err(result) = ensure_protocol(root, &protocol) {
         return result;
     }
     let timestamp = unix_timestamp();
     let decision_id = format!("decision-{work_id}-{timestamp}");
+    let extension_decision_fields = if protocol == extension::EXTENSION_PROTOCOL {
+        format!(
+            ",\"extension_reference\":\"{}\",\"extension_manifest_digest\":\"{}\",\"capability_reference\":\"{}\",\"resource_scope\":\"{}\"",
+            escape_json(&extract_string(&work.raw, "extension_reference").unwrap_or_default()),
+            escape_json(
+                &extract_string(&work.raw, "extension_manifest_digest").unwrap_or_default()
+            ),
+            escape_json(&extract_string(&work.raw, "capability_reference").unwrap_or_default()),
+            escape_json(&extract_string(&work.raw, "resource_scope").unwrap_or_default()),
+        )
+    } else {
+        String::new()
+    };
     let decision = format!(
-        "{{\"kind\":\"Governance\",\"id\":\"{}\",\"project_id\":\"{}\",\"contract_version\":\"AOS-SPEC-001\",\"revision\":\"1\",\"subject\":\"work:{}\",\"decision_type\":\"approval\",\"responsible_principal\":\"{}\",\"decision_instant_unix\":\"{}\",\"outcome\":\"approved\",\"policy_basis\":\"{}\",\"evidence_reference\":\"{}\",\"context_reference\":\"{}:{}@{}\",\"protocol_reference\":\"{}\",\"previous_decision\":null}}",
+        "{{\"kind\":\"Governance\",\"id\":\"{}\",\"project_id\":\"{}\",\"contract_version\":\"AOS-SPEC-001\",\"revision\":\"1\",\"subject\":\"work:{}\",\"decision_type\":\"approval\",\"responsible_principal\":\"{}\",\"decision_instant_unix\":\"{}\",\"outcome\":\"approved\",\"policy_basis\":\"{}\",\"evidence_reference\":\"{}\",\"context_reference\":\"{}:{}@{}\",\"protocol_reference\":\"{}\"{},\"previous_decision\":null}}",
         decision_id,
         escape_json(&context.project_id),
         escape_json(work_id),
@@ -544,7 +654,8 @@ fn authorize(summary: &RepositorySummary, root: &Path, input: WorkInput) -> Quer
         escape_json(&context.document.kind),
         escape_json(&context.document.id),
         context.document.revision,
-        VERIFY_PROTOCOL,
+        protocol,
+        extension_decision_fields,
     );
     let decision_relative = format!(".aos/governance/{decision_id}.r1.json");
     if let Err(error) = write_immutable(&root.join(&decision_relative), &decision, timestamp) {
@@ -629,7 +740,7 @@ fn authorize(summary: &RepositorySummary, root: &Path, input: WorkInput) -> Quer
     }
     let diagnostics = vec![Diagnostic::info(
         "AOS-WORK-AUTHORIZED",
-        format!("Work {work_id} authorized under {VERIFY_PROTOCOL}"),
+        format!("Work {work_id} authorized under {protocol}"),
     )];
     success(
         summary,
@@ -691,13 +802,18 @@ fn run(summary: &RepositorySummary, root: &Path, input: WorkInput) -> QueryResul
             "work:state-machine",
         );
     }
-    let protocol = extract_string(&work.raw, "protocol_id").map(|id| {
-        format!(
-            "{id}@{}",
-            extract_string(&work.raw, "protocol_version").unwrap_or_default()
-        )
-    });
-    if protocol.as_deref() != Some(VERIFY_PROTOCOL) {
+    let protocol = extract_string(&work.raw, "protocol_id")
+        .map(|id| {
+            format!(
+                "{id}@{}",
+                extract_string(&work.raw, "protocol_version").unwrap_or_default()
+            )
+        })
+        .unwrap_or_default();
+    if !matches!(
+        protocol.as_str(),
+        VERIFY_PROTOCOL | extension::EXTENSION_PROTOCOL
+    ) {
         return failure(
             summary,
             4,
@@ -706,8 +822,11 @@ fn run(summary: &RepositorySummary, root: &Path, input: WorkInput) -> QueryResul
             "protocol:unsupported-version",
         );
     }
-    if let Err(result) = ensure_protocol(root) {
+    if let Err(result) = ensure_protocol(root, &protocol) {
         return result;
+    }
+    if protocol == extension::EXTENSION_PROTOCOL {
+        return run_extension(summary, root, &input, &work, executor);
     }
     let context_reference = extract_string(&work.raw, "context_reference").unwrap_or_default();
     let (context_kind, context_id, context_revision) =
@@ -932,6 +1051,340 @@ fn run(summary: &RepositorySummary, root: &Path, input: WorkInput) -> QueryResul
     }
 }
 
+fn run_extension(
+    summary: &RepositorySummary,
+    root: &Path,
+    input: &WorkInput,
+    work: &Document,
+    executor: &str,
+) -> QueryResult {
+    if input.result.is_some() {
+        return failure(
+            summary,
+            2,
+            "AOS-EXTENSION-RESULT-CALLER-DENIED",
+            "extension Run results are produced by the allowlisted host adapter",
+            "extension:no-caller-result",
+        );
+    }
+    if input
+        .evidence
+        .as_deref()
+        .is_some_and(contains_sensitive_reference)
+    {
+        return failure(
+            summary,
+            4,
+            "AOS-PROTOCOL-SENSITIVE-EVIDENCE",
+            "Run evidence must be a non-secret reference",
+            "protocol:sensitive-evidence-rejected",
+        );
+    }
+    let context_reference = extract_string(&work.raw, "context_reference").unwrap_or_default();
+    let (context_kind, context_id, context_revision) =
+        match parse_context_reference(&context_reference) {
+            Some(value) => value,
+            None => {
+                return failure(
+                    summary,
+                    4,
+                    "AOS-PROTOCOL-CONTEXT-UNRESOLVED",
+                    "Work context snapshot is not a resolvable immutable revision",
+                    "protocol:context-snapshot",
+                );
+            }
+        };
+    let context = match context_at_revision(root, context_kind, context_id, context_revision) {
+        Some(value) => value,
+        None => {
+            return failure(
+                summary,
+                4,
+                "AOS-PROTOCOL-CONTEXT-UNRESOLVED",
+                "the declared context snapshot revision does not exist",
+                "protocol:context-snapshot",
+            );
+        }
+    };
+    if context.document.authority.as_deref() != Some("authoritative")
+        || context.document.lifecycle.as_deref() != Some("active")
+        || (context.document.kind == "State"
+            && context.document.freshness.as_deref() != Some("confirmed"))
+    {
+        return failure(
+            summary,
+            4,
+            "AOS-PROTOCOL-CONTEXT-INELIGIBLE",
+            "extension Run requires authoritative, active, and confirmed context",
+            "protocol:precondition-blocked",
+        );
+    }
+
+    let extension_reference = extract_string(&work.raw, "extension_reference").unwrap_or_default();
+    let manifest_digest =
+        extract_string(&work.raw, "extension_manifest_digest").unwrap_or_default();
+    let capability = extract_string(&work.raw, "capability_reference").unwrap_or_default();
+    let resource_scope = extract_string(&work.raw, "resource_scope").unwrap_or_default();
+    if extension_reference.is_empty()
+        || manifest_digest.is_empty()
+        || capability.is_empty()
+        || resource_scope.is_empty()
+    {
+        return failure(
+            summary,
+            4,
+            "AOS-EXTENSION-WORK-BINDING-INVALID",
+            "extension Work requires immutable extension, manifest digest, and capability references",
+            "extension:work-binding",
+        );
+    }
+    let authority_basis = extract_string(&work.raw, "authority_basis")
+        .unwrap_or_else(|| "governance:unknown".to_string());
+    let decision_id = authority_basis
+        .strip_prefix("governance:")
+        .unwrap_or_default();
+    let decision = fs::read_to_string(
+        root.join(".aos")
+            .join("governance")
+            .join(format!("{decision_id}.r1.json")),
+    )
+    .unwrap_or_default();
+    if decision.is_empty()
+        || extract_string(&decision, "extension_reference").as_deref()
+            != Some(extension_reference.as_str())
+        || extract_string(&decision, "extension_manifest_digest").as_deref()
+            != Some(manifest_digest.as_str())
+        || extract_string(&decision, "capability_reference").as_deref() != Some(capability.as_str())
+        || extract_string(&decision, "resource_scope").as_deref() != Some(resource_scope.as_str())
+    {
+        return failure(
+            summary,
+            7,
+            "AOS-EXTENSION-GOVERNANCE-BINDING-MISMATCH",
+            "authorized Work no longer matches its immutable Governance extension binding",
+            "extension:governance-binding-denied",
+        );
+    }
+
+    let timestamp = unix_timestamp();
+    let run_revision = next_revision(root, "runs", &work.id);
+    let execution = extension::execute_for_work(
+        root,
+        &extension_reference,
+        &manifest_digest,
+        &capability,
+        &resource_scope,
+        &authority_basis,
+        &context_reference,
+        &work.id,
+        work.revision,
+        run_revision,
+    );
+
+    let mut changed_paths = Vec::new();
+    let (
+        run_result,
+        final_work_status,
+        operation_outcome,
+        reason,
+        evidence_reference,
+        reconciliation,
+    ) = match execution {
+        Ok(execution) => {
+            changed_paths.push(execution.result_relative);
+            let _result_contract = execution.result_json;
+            (
+                "succeeded",
+                "completed",
+                "completed",
+                "declarative extension capability and result verification passed".to_string(),
+                execution.evidence_reference,
+                "not_required",
+            )
+        }
+        Err(extension_error) => {
+            if extension_error.quarantine {
+                match extension::quarantine_for_safety(
+                    root,
+                    &extension_reference,
+                    &extension_error.message,
+                ) {
+                    Ok(paths) => changed_paths.extend(paths),
+                    Err(quarantine_error) => {
+                        return failure(
+                            summary,
+                            8,
+                            "AOS-EXTENSION-QUARANTINE-UNKNOWN",
+                            &quarantine_error,
+                            "extension:quarantine-reconciliation-required",
+                        );
+                    }
+                }
+            }
+            let unknown = extension_error.exit_code == 8;
+            (
+                if unknown { "unknown" } else { "failed" },
+                if extension_error.quarantine || unknown {
+                    "blocked"
+                } else {
+                    "failed"
+                },
+                if extension_error.quarantine || unknown {
+                    "blocked"
+                } else {
+                    "failed"
+                },
+                extension_error.message,
+                extension_error.evidence.to_string(),
+                if unknown || extension_error.quarantine {
+                    "required"
+                } else {
+                    "not_required"
+                },
+            )
+        }
+    };
+
+    let run = format!(
+        "{{\"kind\":\"Run\",\"id\":\"{}-run\",\"revision\":\"{}\",\"contract_version\":\"AOS-SPEC-003\",\"work_reference\":\"{}@{}\",\"protocol_reference\":\"{}\",\"context_snapshot\":\"{}\",\"executor\":\"{}\",\"started_at_unix\":\"{}\",\"finished_at_unix\":\"{}\",\"status\":\"{}\",\"step\":\"extension-capability\",\"result\":\"{}\",\"extension_reference\":\"{}\",\"manifest_digest\":\"{}\",\"capability_reference\":\"{}\",\"evidence_reference\":\"{}\",\"reason\":\"{}\",\"reconciliation\":\"{}\"}}",
+        escape_json(&work.id),
+        run_revision,
+        escape_json(&work.id),
+        work.revision,
+        extension::EXTENSION_PROTOCOL,
+        escape_json(&context_reference),
+        escape_json(executor),
+        timestamp,
+        timestamp,
+        run_result,
+        run_result,
+        escape_json(&extension_reference),
+        escape_json(&manifest_digest),
+        escape_json(&capability),
+        escape_json(&evidence_reference),
+        escape_json(&reason),
+        reconciliation,
+    );
+    let run_relative = format!(".aos/runs/{}.r{run_revision}.json", work.id);
+    if let Err(write_error) = write_immutable(&root.join(&run_relative), &run, timestamp) {
+        return failure(
+            summary,
+            8,
+            "AOS-PROTOCOL-RUN-UNKNOWN",
+            &write_error,
+            "protocol:run-reconciliation-required",
+        );
+    }
+    changed_paths.push(run_relative);
+
+    let authority_basis = extract_string(&work.raw, "authority_basis")
+        .unwrap_or_else(|| "governance:unknown".to_string());
+    let in_progress = replace_work(
+        &work.raw,
+        work.revision + 1,
+        timestamp + 1,
+        "in_progress",
+        "authoritative",
+        &authority_basis,
+        &context_reference,
+        None,
+        None,
+    );
+    let progress_relative = format!(".aos/work/{}.r{}.json", work.id, work.revision + 1);
+    if let Err(write_error) =
+        write_immutable(&root.join(&progress_relative), &in_progress, timestamp + 1)
+    {
+        return failure(
+            summary,
+            8,
+            "AOS-WORK-START-UNKNOWN",
+            &write_error,
+            "work:start-reconciliation-required",
+        );
+    }
+    changed_paths.push(progress_relative);
+
+    let final_work = replace_work(
+        &in_progress,
+        work.revision + 2,
+        timestamp + 2,
+        final_work_status,
+        "authoritative",
+        &authority_basis,
+        &context_reference,
+        if final_work_status == "completed" {
+            Some(&evidence_reference)
+        } else {
+            None
+        },
+        Some(&reason),
+    );
+    let final_relative = format!(".aos/work/{}.r{}.json", work.id, work.revision + 2);
+    if let Err(write_error) =
+        write_immutable(&root.join(&final_relative), &final_work, timestamp + 2)
+    {
+        return failure(
+            summary,
+            8,
+            "AOS-WORK-COMPLETION-UNKNOWN",
+            &write_error,
+            "work:completion-reconciliation-required",
+        );
+    }
+    changed_paths.push(final_relative);
+
+    let audit = match audit_event(
+        root,
+        timestamp + 3,
+        &work.id,
+        &format!("extension_run_{run_result}"),
+        executor,
+        &authority_basis,
+        &format!("run:{}@{run_revision}", work.id),
+    ) {
+        Ok(value) => value,
+        Err(audit_error) => {
+            return failure(
+                summary,
+                8,
+                "AOS-AUDIT-WRITE-UNKNOWN",
+                &audit_error,
+                "audit:reconciliation-required",
+            );
+        }
+    };
+
+    let diagnostics = vec![Diagnostic::info(
+        "AOS-EXTENSION-RUN-RECORDED",
+        format!("extension capability Run recorded with result {run_result}"),
+    )];
+    let evidence = vec![
+        "extension:manifest-digest-bound".to_string(),
+        "extension:capability-intersection".to_string(),
+        evidence_reference,
+        audit,
+    ];
+    let operation = OperationSummary {
+        id: format!("op-extension-work-run-{timestamp}"),
+        result: operation_outcome.to_string(),
+        changed_paths,
+        verification: reason,
+        reconciliation: reconciliation.to_string(),
+        audit_evidence: vec![
+            format!("protocol:{}", extension::EXTENSION_PROTOCOL),
+            format!("extension:{extension_reference}"),
+            format!("capability:{capability}"),
+            format!("executor:{executor}"),
+        ],
+        timestamp: timestamp.to_string(),
+    };
+    if run_result == "succeeded" {
+        success(summary, diagnostics, evidence, final_work, operation)
+    } else {
+        recorded_findings(summary, diagnostics, evidence, final_work, operation)
+    }
+}
+
 fn reconcile(summary: &RepositorySummary, root: &Path, input: WorkInput) -> QueryResult {
     let work_id = match required_id(input.work_id.as_deref(), "work id") {
         Ok(value) => value,
@@ -1147,11 +1600,16 @@ fn show(summary: &RepositorySummary, root: &Path, input: WorkInput) -> QueryResu
     let governance = read_matching(&root.join(".aos").join("governance"), &work_ids);
     let runs = read_matching(&root.join(".aos").join("runs"), &work_ids);
     let audit = read_matching(&root.join(".aos").join("audit"), &work_ids);
+    let extension_results = read_matching(
+        &root.join(".aos").join("extensions").join("results"),
+        &work_ids,
+    );
     let data = format!(
-        "{{\"work\":[{}],\"governance\":[{}],\"runs\":[{}],\"audit\":[{}]}}",
+        "{{\"work\":[{}],\"governance\":[{}],\"runs\":[{}],\"extension_results\":[{}],\"audit\":[{}]}}",
         selected.join(","),
         governance.join(","),
         runs.join(","),
+        extension_results.join(","),
         audit.join(","),
     );
     success(
@@ -1166,7 +1624,8 @@ fn show(summary: &RepositorySummary, root: &Path, input: WorkInput) -> QueryResu
             id: format!("op-work-show-{}", unix_timestamp()),
             result: "queried".to_string(),
             changed_paths: Vec::new(),
-            verification: "Work, Governance, Run, and Audit references collected".to_string(),
+            verification: "Work, Governance, Run, Extension Result, and Audit references collected"
+                .to_string(),
             reconciliation: "not_required".to_string(),
             audit_evidence: vec!["work:audit-trace".to_string()],
             timestamp: unix_timestamp().to_string(),
@@ -1197,8 +1656,25 @@ fn replace_work(
         extract_string(raw, "protocol_id").unwrap_or_else(|| "aos.local.verify".to_string());
     let protocol_version =
         extract_string(raw, "protocol_version").unwrap_or_else(|| "1.0.0".to_string());
+    let extension_fields = match (
+        extract_string(raw, "extension_reference"),
+        extract_string(raw, "extension_manifest_digest"),
+        extract_string(raw, "capability_reference"),
+        extract_string(raw, "resource_scope"),
+    ) {
+        (Some(extension_reference), Some(manifest_digest), Some(capability), Some(resource_scope)) => {
+            format!(
+                "\"extension_reference\":\"{}\",\"extension_manifest_digest\":\"{}\",\"capability_reference\":\"{}\",\"resource_scope\":\"{}\",",
+                escape_json(&extension_reference),
+                escape_json(&manifest_digest),
+                escape_json(&capability),
+                escape_json(&resource_scope),
+            )
+        }
+        _ => "\"extension_reference\":null,\"extension_manifest_digest\":null,\"capability_reference\":null,\"resource_scope\":null,".to_string(),
+    };
     format!(
-        "{{\"kind\":\"Work\",\"id\":\"{}\",\"project_id\":\"{}\",\"contract_version\":\"AOS-SPEC-001\",\"revision\":\"{}\",\"previous_revision\":\"{}@{}\",\"owner\":\"{}\",\"producer\":\"aos-cli\",\"created_at_unix\":\"{}\",\"last_produced_at_unix\":\"{}\",\"authority\":\"{}\",\"lifecycle\":\"active\",\"intent\":\"{}\",\"scope\":\"{}\",\"context_reference\":\"{}\",\"expected_output\":\"{}\",\"verification_requirements\":\"{}\",\"protocol_id\":\"{}\",\"protocol_version\":\"{}\",\"status\":\"{}\",\"failure_reason\":{},\"unresolved_condition\":{},\"verification_evidence\":{},\"authority_basis\":\"{}\",\"authority_reference\":\"{}\"}}",
+        "{{\"kind\":\"Work\",\"id\":\"{}\",\"project_id\":\"{}\",\"contract_version\":\"AOS-SPEC-001\",\"revision\":\"{}\",\"previous_revision\":\"{}@{}\",\"owner\":\"{}\",\"producer\":\"aos-cli\",\"created_at_unix\":\"{}\",\"last_produced_at_unix\":\"{}\",\"authority\":\"{}\",\"lifecycle\":\"active\",\"intent\":\"{}\",\"scope\":\"{}\",\"context_reference\":\"{}\",\"expected_output\":\"{}\",\"verification_requirements\":\"{}\",\"protocol_id\":\"{}\",\"protocol_version\":\"{}\",{}\"status\":\"{}\",\"failure_reason\":{},\"unresolved_condition\":{},\"verification_evidence\":{},\"authority_basis\":\"{}\",\"authority_reference\":\"{}\"}}",
         escape_json(&id),
         escape_json(&project_id),
         revision,
@@ -1215,6 +1691,7 @@ fn replace_work(
         escape_json(&verification),
         escape_json(&protocol_id),
         escape_json(&protocol_version),
+        extension_fields,
         escape_json(status),
         optional_json_string(if matches!(status, "failed" | "blocked") {
             reason
@@ -1270,11 +1747,37 @@ fn promoted_context(
 }
 
 #[allow(clippy::result_large_err)]
-fn ensure_protocol(root: &Path) -> Result<(), QueryResult> {
-    let path = root
-        .join(".aos")
-        .join("protocol")
-        .join("aos.local.verify@1.0.0.json");
+fn ensure_protocol(root: &Path, protocol: &str) -> Result<(), QueryResult> {
+    let (protocol_id, filename, purpose, steps) = match protocol {
+        VERIFY_PROTOCOL => (
+            VERIFY_PROTOCOL_ID,
+            "aos.local.verify@1.0.0.json",
+            "deterministic local-only context and repository verification",
+            "repository-boundary, context-authority, context-freshness",
+        ),
+        extension::EXTENSION_PROTOCOL => (
+            extension::EXTENSION_PROTOCOL_ID,
+            "aos.extension.readonly@1.0.0.json",
+            "governed declarative local read-only extension capability execution",
+            "extension-lifecycle, manifest-integrity, capability-intersection, host-adapter",
+        ),
+        _ => {
+            return Err(failure(
+                &RepositorySummary {
+                    root: root.to_string_lossy().into_owned(),
+                    status: "initialized".to_string(),
+                    compatibility: "supported".to_string(),
+                    control_root: root.join(".aos").to_string_lossy().into_owned(),
+                    control_root_state: "directory".to_string(),
+                },
+                6,
+                "AOS-PROTOCOL-UNSUPPORTED",
+                "Protocol version is not supported",
+                "protocol:unsupported-version",
+            ));
+        }
+    };
+    let path = root.join(".aos").join("protocol").join(filename);
     if path.exists() {
         let raw = fs::read_to_string(&path).map_err(|error| QueryResult {
             repository: None,
@@ -1289,7 +1792,7 @@ fn ensure_protocol(root: &Path) -> Result<(), QueryResult> {
             exit_code: 4,
             outcome: "findings".to_string(),
         })?;
-        if extract_string(&raw, "id").as_deref() != Some("aos.local.verify")
+        if extract_string(&raw, "id").as_deref() != Some(protocol_id)
             || extract_string(&raw, "version").as_deref() != Some("1.0.0")
             || extract_string(&raw, "status").as_deref() != Some("accepted")
         {
@@ -1303,15 +1806,20 @@ fn ensure_protocol(root: &Path) -> Result<(), QueryResult> {
                 },
                 4,
                 "AOS-PROTOCOL-CONTRACT-INVALID",
-                "aos.local.verify@1.0.0 is not an accepted immutable Protocol",
+                &format!("{protocol} is not an accepted immutable Protocol"),
                 "protocol:contract-invalid",
             ));
         }
         return Ok(());
     }
     let timestamp = unix_timestamp();
-    let content = "{\"kind\":\"Protocol\",\"id\":\"aos.local.verify\",\"version\":\"1.0.0\",\"status\":\"accepted\",\"purpose\":\"deterministic local-only context and repository verification\",\"inputs\":\"Work revision and Context Snapshot\",\"outputs\":\"verification evidence\",\"steps\":\"repository-boundary, context-authority, context-freshness\",\"governance_points\":\"authorization before run\",\"execution_mode\":\"read_only\",\"failure_behavior\":\"fail_closed_and_reconcile\"}";
-    write_immutable(&path, content, timestamp).map_err(|error| {
+    let content = format!(
+        "{{\"kind\":\"Protocol\",\"id\":\"{}\",\"version\":\"1.0.0\",\"status\":\"accepted\",\"purpose\":\"{}\",\"inputs\":\"Work revision and Context Snapshot\",\"outputs\":\"verification evidence\",\"steps\":\"{}\",\"governance_points\":\"authorization before run\",\"execution_mode\":\"read_only\",\"failure_behavior\":\"fail_closed_and_reconcile\"}}",
+        escape_json(protocol_id),
+        escape_json(purpose),
+        escape_json(steps),
+    );
+    write_immutable(&path, &content, timestamp).map_err(|error| {
         failure(
             &RepositorySummary {
                 root: root.to_string_lossy().into_owned(),
@@ -1598,6 +2106,19 @@ fn failure(
             "findings".to_string()
         },
     }
+}
+
+fn extension_error_result(
+    summary: &RepositorySummary,
+    extension_error: extension::ExtensionError,
+) -> QueryResult {
+    failure(
+        summary,
+        extension_error.exit_code,
+        extension_error.code,
+        &extension_error.message,
+        extension_error.evidence,
+    )
 }
 
 fn optional_json_string(value: Option<&str>) -> String {

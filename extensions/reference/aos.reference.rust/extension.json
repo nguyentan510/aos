@@ -1,0 +1,32 @@
+{
+  "schema_version": "1",
+  "contract_version": "AOS-SPEC-006",
+  "id": "aos.reference.rust",
+  "version": "1.0.0",
+  "type": "language",
+  "owner": "AOS project",
+  "namespace": "aos.reference.rust",
+  "aos_compatibility": ">=0.1.0, <0.2.0",
+  "dependencies": [],
+  "capabilities": [
+    {
+      "name": "aos.reference.rust.cargo_manifest.summary",
+      "host_operation": "rust.cargo_manifest.summary@1.0.0",
+      "operation_class": "read_only",
+      "resource_scopes": [
+        "file:Cargo.toml"
+      ],
+      "idempotent": true,
+      "retryable": true,
+      "compensatable": false,
+      "reconciliation_required": false
+    }
+  ],
+  "data_ownership": "aos.reference.rust",
+  "security": {
+    "network": false,
+    "secrets": false,
+    "process": false
+  },
+  "failure_behavior": "fail_closed"
+}

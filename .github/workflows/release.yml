@@ -50,17 +50,21 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: |
-          New-Item -ItemType Directory -Path dist | Out-Null
-          Copy-Item "target\${{ matrix.target }}\release\aos.exe" "dist\aos.exe"
-          Compress-Archive -Path "dist\aos.exe" -DestinationPath "dist\${{ matrix.archive }}"
-          Remove-Item "dist\aos.exe"
+          New-Item -ItemType Directory -Path "dist\package" | Out-Null
+          Copy-Item "target\${{ matrix.target }}\release\aos.exe" "dist\package\aos.exe"
+          Copy-Item "extensions" "dist\package\extensions" -Recurse
+          Compress-Archive -Path "dist\package\*" -DestinationPath "dist\${{ matrix.archive }}"
+          Remove-Item "dist\package" -Recurse
 
       - name: Package Linux binary
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          mkdir -p dist
-          tar -C "target/${{ matrix.target }}/release" -czf "dist/${{ matrix.archive }}" aos
+          mkdir -p dist/package
+          cp "target/${{ matrix.target }}/release/aos" dist/package/aos
+          cp -R extensions dist/package/extensions
+          tar -C dist/package -czf "../${{ matrix.archive }}" aos extensions
+          rm -rf dist/package
 
       - name: Upload packaged binary
         uses: actions/upload-artifact@v4

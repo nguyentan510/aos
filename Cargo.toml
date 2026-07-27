@@ -9,3 +9,10 @@ rust-version = "1.96"
 [[bin]]
 name = "aos"
 path = "src/main.rs"
+
+[dependencies]
+semver = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+toml = "0.9"

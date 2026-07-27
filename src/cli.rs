@@ -1,3 +1,4 @@
+use crate::extension::{self, ExtensionAction, ExtensionInput};
 use crate::intelligence::{self, ContextProfile, RecordInput, RecordKind};
 use crate::model::{CLI_CONTRACT_VERSION, CLI_VERSION, Diagnostic, OutputFormat, ResultEnvelope};
 use crate::repository;
@@ -15,6 +16,7 @@ pub enum Command {
     State,
     Context,
     Work,
+    Extension,
     Help,
 }
 
@@ -30,6 +32,7 @@ impl Command {
             Self::State => "state",
             Self::Context => "context",
             Self::Work => "work",
+            Self::Extension => "extension",
             Self::Help => "help",
         }
     }
@@ -68,6 +71,12 @@ pub struct Options {
     pub evidence: Option<String>,
     pub result: Option<String>,
     pub reason: Option<String>,
+    pub extension_action: ExtensionAction,
+    pub manifest_path: Option<PathBuf>,
+    pub extension_id: Option<String>,
+    pub extension_version: Option<String>,
+    pub extension_reference: Option<String>,
+    pub capability: Option<String>,
 }
 
 #[derive(Debug)]
@@ -123,6 +132,13 @@ where
     let mut evidence = None;
     let mut result = None;
     let mut reason = None;
+    let mut extension_action = ExtensionAction::Inspect;
+    let mut extension_action_explicit = false;
+    let mut manifest_path = None;
+    let mut extension_id = None;
+    let mut extension_version = None;
+    let mut extension_reference = None;
+    let mut capability = None;
     let mut iterator = arguments.into_iter();
 
     while let Some(argument) = iterator.next() {
@@ -160,6 +176,12 @@ where
                     evidence,
                     result,
                     reason,
+                    extension_action,
+                    manifest_path,
+                    extension_id,
+                    extension_version,
+                    extension_reference,
+                    capability,
                 });
             }
             "-V" | "--version" => command = Some(Command::Version),
@@ -286,6 +308,31 @@ where
             value if value.starts_with("--reason=") => {
                 reason = Some(value.trim_start_matches("--reason=").to_string())
             }
+            "--manifest" => {
+                manifest_path = Some(PathBuf::from(next_value(&mut iterator, "--manifest")?))
+            }
+            value if value.starts_with("--manifest=") => {
+                manifest_path = Some(PathBuf::from(value.trim_start_matches("--manifest=")))
+            }
+            "--extension-id" => extension_id = Some(next_value(&mut iterator, "--extension-id")?),
+            value if value.starts_with("--extension-id=") => {
+                extension_id = Some(value.trim_start_matches("--extension-id=").to_string())
+            }
+            "--extension-version" => {
+                extension_version = Some(next_value(&mut iterator, "--extension-version")?)
+            }
+            value if value.starts_with("--extension-version=") => {
+                extension_version =
+                    Some(value.trim_start_matches("--extension-version=").to_string())
+            }
+            "--extension" => extension_reference = Some(next_value(&mut iterator, "--extension")?),
+            value if value.starts_with("--extension=") => {
+                extension_reference = Some(value.trim_start_matches("--extension=").to_string())
+            }
+            "--capability" => capability = Some(next_value(&mut iterator, "--capability")?),
+            value if value.starts_with("--capability=") => {
+                capability = Some(value.trim_start_matches("--capability=").to_string())
+            }
             "--format" => {
                 let value = iterator
                     .next()
@@ -309,6 +356,14 @@ where
                 {
                     work_action = WorkAction::parse(value).expect("validated work action");
                     work_action_explicit = true;
+                } else if matches!(command, Some(Command::Extension))
+                    && !extension_action_explicit
+                    && path.is_none()
+                    && ExtensionAction::parse(value).is_ok()
+                {
+                    extension_action =
+                        ExtensionAction::parse(value).expect("validated extension action");
+                    extension_action_explicit = true;
                 } else if path.is_some() {
                     return Err(format!("unexpected argument '{value}'"));
                 } else {
@@ -321,7 +376,7 @@ where
     let command = command.unwrap_or(Command::Help);
     if !matches!(
         command,
-        Command::Init | Command::Knowledge | Command::State | Command::Work
+        Command::Init | Command::Knowledge | Command::State | Command::Work | Command::Extension
     ) && (dry_run || apply)
     {
         return Err("--dry-run and --apply are only valid for mutating commands".to_string());
@@ -331,7 +386,7 @@ where
     }
     if !matches!(
         command,
-        Command::Init | Command::Knowledge | Command::State | Command::Work
+        Command::Init | Command::Knowledge | Command::State | Command::Work | Command::Extension
     ) && authority.is_some()
     {
         return Err("--authority is only valid for mutating commands".to_string());
@@ -383,7 +438,6 @@ where
             || protocol.is_some()
             || expected_output.is_some()
             || verification.is_some()
-            || evidence.is_some()
             || result.is_some()
             || reason.is_some())
     {
@@ -391,6 +445,50 @@ where
     }
     if !matches!(command, Command::Work) && work_action_explicit {
         return Err("work actions are only valid for work".to_string());
+    }
+    if !matches!(command, Command::Work) && (extension_reference.is_some() || capability.is_some())
+    {
+        return Err("--extension and --capability are only valid for work".to_string());
+    }
+    if !matches!(command, Command::Extension)
+        && (manifest_path.is_some() || extension_id.is_some() || extension_version.is_some())
+    {
+        return Err(
+            "--manifest, --extension-id and --extension-version are only valid for extension"
+                .to_string(),
+        );
+    }
+    if !matches!(command, Command::Extension) && extension_action_explicit {
+        return Err("extension actions are only valid for extension".to_string());
+    }
+    if evidence.is_some() && !matches!(command, Command::Work | Command::Extension) {
+        return Err("--evidence is only valid for work or extension".to_string());
+    }
+    if matches!(command, Command::Extension) {
+        if extension_action.is_read_only()
+            && (dry_run || apply || authority.is_some() || evidence.is_some())
+        {
+            return Err(
+                "read-only extension actions do not accept mutation or authority flags".to_string(),
+            );
+        }
+        if matches!(
+            extension_action,
+            ExtensionAction::Discover | ExtensionAction::Validate | ExtensionAction::Enable
+        ) && manifest_path.is_none()
+        {
+            return Err("extension action requires --manifest <PATH>".to_string());
+        }
+        if matches!(
+            extension_action,
+            ExtensionAction::Inspect
+                | ExtensionAction::Disable
+                | ExtensionAction::Quarantine
+                | ExtensionAction::Remove
+        ) && extension_id.is_none()
+        {
+            return Err("extension action requires --extension-id <ID>".to_string());
+        }
     }
     if matches!(command, Command::Work)
         && work_action == WorkAction::Show
@@ -431,6 +529,12 @@ where
         evidence,
         result,
         reason,
+        extension_action,
+        manifest_path,
+        extension_id,
+        extension_version,
+        extension_reference,
+        capability,
     })
 }
 
@@ -445,6 +549,7 @@ fn parse_command(value: &str) -> Result<Command, String> {
         "state" => Ok(Command::State),
         "context" => Ok(Command::Context),
         "work" => Ok(Command::Work),
+        "extension" => Ok(Command::Extension),
         "help" => Ok(Command::Help),
         _ => Err(format!("unknown command '{value}'")),
     }
@@ -476,6 +581,7 @@ pub fn run(options: Options) -> CommandResult {
         Command::Inspect | Command::Validate | Command::Doctor => repository_result(options),
         Command::Knowledge | Command::State | Command::Context => intelligence_result(options),
         Command::Work => work_result(options),
+        Command::Extension => extension_result(options),
     }
 }
 
@@ -693,6 +799,8 @@ fn work_result(options: Options) -> CommandResult {
         evidence: options.evidence.clone(),
         result: options.result.clone(),
         reason: options.reason.clone(),
+        extension_reference: options.extension_reference.clone(),
+        capability: options.capability.clone(),
     });
     let mut envelope = if result.outcome == "success" || result.outcome == "plan_ready" {
         ResultEnvelope::success("work")
@@ -724,8 +832,51 @@ fn work_result(options: Options) -> CommandResult {
     }
 }
 
+fn extension_result(options: Options) -> CommandResult {
+    let result = extension::execute(ExtensionInput {
+        action: options.extension_action,
+        path: options.path.clone(),
+        manifest_path: options.manifest_path.clone(),
+        extension_id: options.extension_id.clone(),
+        extension_version: options.extension_version.clone(),
+        apply: options.apply,
+        authority: options.authority.clone(),
+        evidence: options.evidence.clone(),
+    });
+    let mut envelope = if result.outcome == "success" || result.outcome == "plan_ready" {
+        ResultEnvelope::success("extension")
+    } else {
+        ResultEnvelope::error(
+            "extension",
+            match result.exit_code {
+                2 => "usage_error",
+                3 => "root_error",
+                4 => "validation_findings",
+                5 => "ownership_conflict",
+                6 => "unsupported_contract",
+                7 => "authorization_required",
+                8 => "operation_unknown",
+                _ => "internal_error",
+            },
+        )
+    };
+    envelope.outcome = result.outcome;
+    envelope.repository = result.repository;
+    envelope.diagnostics = result.diagnostics;
+    envelope.evidence = result.evidence;
+    envelope.data = Some(result.data);
+    envelope.plan = result.plan;
+    envelope.operation = result.operation;
+    CommandResult {
+        envelope,
+        format: options.format,
+        quiet: options.quiet,
+        exit_code: result.exit_code,
+    }
+}
+
 fn usage() -> String {
-    "usage: aos <version|inspect|validate|doctor|init|knowledge|state|context|work> [PATH] [--format human|json] [--quiet]\n\
+    "usage: aos <version|inspect|validate|doctor|init|knowledge|state|context|work|extension> [PATH] [--format human|json] [--quiet]\n\
  read-only commands: version, inspect, validate, doctor.\n\
  init plans by default; use --dry-run to make the non-mutating intent explicit.\n\
  init --apply requires --authority <REFERENCE> and performs transactional adoption.\n\
@@ -733,7 +884,8 @@ fn usage() -> String {
  context selects authoritative active Knowledge and confirmed State deterministically.\n\
  context supports --profile full|compact and an optional --budget-bytes limit.\n\
  work actions: create, authorize, run, reconcile, show; mutating actions require --apply.\n\
- work run executes only the deterministic local aos.local.verify@1.0.0 protocol."
+ extension actions: discover, validate, inspect, enable, disable, quarantine, remove.\n\
+ extension discovery and validation are read-only; lifecycle mutation requires --apply."
         .to_string()
 }
 

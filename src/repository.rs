@@ -573,6 +573,11 @@ fn extract_json_string(content: &str, key: &str) -> Option<String> {
     Some(remainder[..end].replace("\\\"", "\"").replace("\\\\", "\\"))
 }
 
+pub(crate) fn project_id(root: &Path) -> Option<String> {
+    let content = fs::read_to_string(root.join(".aos").join(MANIFEST_FILE)).ok()?;
+    extract_json_string(&content, "project_id")
+}
+
 fn control_snapshot(control_root: &Path) -> String {
     match fs::symlink_metadata(control_root) {
         Ok(metadata) if metadata.file_type().is_symlink() => "symlink".to_string(),

@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Authors:** AOS project
 **Created:** 2026-07-26
-**Updated:** 2026-07-26
+**Updated:** 2026-07-27
 **Depends on:** AOS-SPEC-001 — Information Model; AOS-SPEC-003 — Protocol;
 AOS-SPEC-005 — Runtime
 **Supersedes:** None
@@ -53,6 +53,12 @@ This specification does not define:
 - unrestricted dynamic code loading;
 - authority delegation outside Governance; or
 - extension-specific domain semantics.
+
+The accepted physical and execution binding for the first implementation is
+defined by
+[ADR-0010](../adr/0010-p6-governed-declarative-extension-ecosystem.md).
+It intentionally implements a declarative local subset of this logical
+contract.
 
 ## Terminology
 

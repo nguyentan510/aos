@@ -410,6 +410,15 @@ blocked/unknown -> reconciling -> running | completed | failed | cancelled
 | PR-C011 failed required verification | PR-021–PR-022 | Run cannot complete and Work is failed or blocked |
 | PR-C012 reconciliation after partial mutation | PR-029–PR-032 | Actual state is observed before any resume or retry |
 
+## Accepted P6 extension Protocol binding
+
+ADR-0010 binds the first extension Protocol to
+`aos.extension.readonly@1.0.0`. It is sequential, local-only, read-only, and
+declarative. It accepts no caller command, executable, network target, secret,
+or arbitrary filesystem path. A Run must revalidate the enabled manifest
+digest, namespaced capability, Governance decision, Runtime allowlist, and
+exact Repository scope. Extension output remains proposed evidence.
+
 ## Unresolved questions
 
 ## Change history

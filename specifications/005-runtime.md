@@ -347,6 +347,15 @@ No Runtime transition can bypass Protocol or Governance requirements.
 | RT-C009 degraded Runtime health | RT-005, RT-029 | New unsafe work is refused while safe work may be constrained |
 | RT-C010 Adapter output promotion | RT-031–RT-036 | Provider result remains proposed until verification |
 
+## Accepted P6 Runtime binding
+
+ADR-0010 limits the first extension Runtime adapter to two compiled host
+operations: `repository.summary@1.0.0` and
+`rust.cargo_manifest.summary@1.0.0`. The Runtime does not load extension code
+and cannot authorize lifecycle or Work. Integrity, scope, or isolation failure
+is a fail-closed safety denial that quarantines the extension and blocks Work;
+it is not a Runtime-issued authority decision.
+
 ## Unresolved questions
 
 ## Change history

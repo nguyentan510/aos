@@ -1,4 +1,5 @@
 mod cli;
+mod extension;
 mod intelligence;
 mod model;
 mod repository;

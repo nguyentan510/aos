@@ -139,6 +139,15 @@ extensions cannot bypass Governance. The CI-built
 prerelease contains Windows and Linux archives with published checksums.
 Production-like-runtime-ready and production-ready remain explicitly unclaimed.
 
+The P6 implementation candidate now provides governed, declarative,
+local-read-only extension lifecycle and execution. The Generic Repository and
+Rust reference manifests run only through authorized Work using
+`aos.extension.readonly@1.0.0`; arbitrary executable, command, path, network,
+secret, and provider inputs are not supported. Local AOS and fixed-snapshot
+TRENUX smokes pass. P6 remains active until hosted Windows/Ubuntu CI and the
+`v0.1.0-rc.3` packaged-manifest provenance gate pass. See
+[P6 Extension Ecosystem Review](evidence/P6-EXTENSION-ECOSYSTEM-REVIEW.md).
+
 Validate the complete design and standards governance with:
 
 ```bash
