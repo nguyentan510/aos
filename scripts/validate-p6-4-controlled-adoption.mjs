@@ -41,10 +41,13 @@ requireText(".github/workflows/ci.yml", [
   "run_p6_4_controlled_adoption_pilot.ps1",
 ]);
 requireText("evidence/P6.4-CONTROLLED-ADOPTION-PILOT.md", [
+  "**Status:** PASS",
   "p6-4-20260727T144515Z",
   "p6-4-agent-20260727T145003Z",
+  "30277600563",
   "AOS_P6_4_CONTROLLED_ADOPTION_PILOT_OK",
   "AOS_P6_4_AGENT_WORKFLOW_QUALIFICATION_OK",
+  "AOS_P6_4_ADOPTION_READY_OK",
   "Production-ready:                   NOT CLAIMED",
 ]);
 requireText("ROADMAP.md", [

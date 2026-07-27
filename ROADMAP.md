@@ -361,7 +361,7 @@ on fresh Windows and Ubuntu runners while retaining downstream `.aos`.
 
 ### P6.4 controlled adoption pilot
 
-**Status:** `ACTIVE`
+**Status:** `COMPLETE`
 
 P6.4 proves adoption without widening Core semantics. The published RC4 is
 installed into an isolated root and used across empty, generic, and Rust
@@ -378,9 +378,15 @@ the successful correctness or governance result.
 
 Evidence is recorded in
 [`P6.4 Controlled Adoption Pilot`](evidence/P6.4-CONTROLLED-ADOPTION-PILOT.md).
-Closeout waits only for the structural harness to pass on fresh hosted Windows
-and Ubuntu runners. P6.2 remains active on its separate pinned real-duration
-lane, and P7 remains planned pending a measured scaling bottleneck.
+
+**Closeout:** Passed on 2026-07-27. Published RC4 adoption passes on three
+repository types; real onboarding, bugfix, and feature Agent tasks pass; and
+GitHub Actions run `30277600563` passes the structural pilot on fresh Windows
+and Ubuntu runners for implementation commit
+`bee4e369c20d0ada2fb9415e2a7573ce1825e77a`.
+
+P6.2 remains active on its separate pinned real-duration lane, and P7 remains
+planned pending a measured scaling bottleneck.
 
 ## P7 — Scale and Distributed Runtime
 
