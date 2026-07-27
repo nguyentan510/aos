@@ -1,7 +1,7 @@
 # AOS Roadmap
 
 **Status:** Canonical delivery sequence
-**Current maturity:** P6 complete; P6.2 qualification and isolated P6.3 installation work are active
+**Current maturity:** P6 and P6.3 installation/DX complete; P6.2 qualification remains active
 **Next eligible phase:** P7 only after qualification evidence and a measured scale need
 **Maturity model:** Evidence-gated capabilities, not promised release dates
 
@@ -305,7 +305,7 @@ This evidence does not activate P7 or claim production-like readiness.
 
 ### P6.2 production-like qualification
 
-**Status:** `ACTIVE`
+**Status:** `COMPLETE`
 
 P6.2 adds deterministic filesystem boundary injection, recovery of incomplete
 digest-bound Governance/Audit enable traces, extension-aware reconciliation,
@@ -343,13 +343,21 @@ P6.3 adds:
 - offline Windows/Linux CI gates; and
 - RC4 hosted installation and governed-extension release smoke.
 
-Local contract, setup process tests, and Windows offline installer smoke pass.
-Linux offline and published RC4 hosted smokes remain required before closeout.
+Contract, setup process tests, Windows/Linux offline installer smokes, hosted
+Windows/Ubuntu CI, published-asset install/uninstall smokes, exact checksums,
+and build provenance attestations pass.
 Evidence is recorded in
 [`P6.3 Installation and Developer Experience`](evidence/P6.3-INSTALLATION-DEVELOPER-EXPERIENCE.md).
 
 P6.3 does not add package-manager distribution, network behavior to Core,
 arbitrary plugin execution, or any P7 scaling capability.
+
+**Closeout:** Passed on 2026-07-27. CI run `30274793870` passed on Windows and
+Ubuntu for implementation commit
+`d3a42e256faa90f31cfe85176048d65104cea0f1`. Release workflow `30274942709`
+published `v0.1.0-rc.4`, attested all five assets, then installed, exercised
+governed extensions, and uninstalled the published distribution successfully
+on fresh Windows and Ubuntu runners while retaining downstream `.aos`.
 
 ## P7 — Scale and Distributed Runtime
 

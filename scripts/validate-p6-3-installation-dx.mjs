@@ -72,10 +72,15 @@ requireText(".github/workflows/release.yml", [
   "Hosted install smoke",
 ]);
 requireText("evidence/P6.3-INSTALLATION-DEVELOPER-EXPERIENCE.md", [
+  "**Status:** PASS",
   "AOS_P6_3_SETUP_CONTRACT_OK",
   "AOS_P6_3_INSTALL_WINDOWS_OK",
   "AOS_P6_3_INSTALL_LINUX_OK",
   "AOS_P6_3_FRESH_PROJECT_SMOKE_OK",
+  "AOS_P6_3_INSTALLATION_DX_OK",
+  "30274793870",
+  "30274942709",
+  "v0.1.0-rc.4",
 ]);
 
 if (failures.length > 0) {
@@ -87,3 +92,4 @@ if (failures.length > 0) {
 }
 
 console.log("AOS_P6_3_INSTALLATION_DX_STATIC_VALIDATION_OK");
+console.log("AOS_P6_3_INSTALLATION_DX_OK");

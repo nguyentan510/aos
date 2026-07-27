@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P6 complete; P6.2 qualification and isolated P6.3 installation work are active; P7 remains planned
+**Status:** P6 and P6.3 installation/DX complete; P6.2 qualification remains active; P7 remains planned
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -200,13 +200,17 @@ seven-day duration gate remains `ACTIVE`; production-like-runtime-ready is not
 claimed. See
 [P6.2 Production-like Qualification](evidence/P6.2-PRODUCTION-LIKE-QUALIFICATION.md).
 
-P6.3 is an isolated developer-experience follow-on governed by
+P6.3 is a completed, isolated developer-experience follow-on governed by
 [ADR-0011](adr/0011-p6-3-one-command-installation-and-setup.md). It adds
 `aos setup`, embedded reference manifests, checksum-verified Windows/Linux
 installers, offline installer gates, owned uninstall, and hosted release smoke.
 The official P6.2 lane remains pinned outside this repository and continues by
 daily automation; P6.3 does not waive its real elapsed-time gate. See
 [P6.3 Installation and Developer Experience](evidence/P6.3-INSTALLATION-DEVELOPER-EXPERIENCE.md).
+The CI-built
+[`v0.1.0-rc.4`](https://github.com/nguyentan510/aos/releases/tag/v0.1.0-rc.4)
+prerelease contains both binaries, both installers, exact checksums, and GitHub
+build provenance attestations.
 
 Validate the complete design and standards governance with:
 
