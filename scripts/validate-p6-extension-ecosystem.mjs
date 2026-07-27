@@ -99,6 +99,7 @@ requireText("evidence/P6.1-ADOPTION-HARDENING-REVIEW.md", [
   "AOS_P6_1_AUTHORING_KIT_OK",
   "AOS_P6_1_MULTI_REPOSITORY_PILOT_OK",
   "normalized replay drift: 0",
+  "30252296890 PASS",
 ]);
 requireText(".github/workflows/ci.yml", [
   "run_p6_extension_ecosystem_smoke.ps1",
