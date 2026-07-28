@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P6, P6.2 accelerated qualification, P6.3 installation/DX, P6.4 controlled adoption, and P6.5 Agent efficiency complete; P6.6 qualification remains active; P7 remains planned
+**Status:** P6 through P6.6 qualification complete; P7 remains planned pending a measured bottleneck
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -227,15 +227,14 @@ fall 45.455%, and elapsed time falls 25.708%. Uncached-token behavior is
 reported separately and no provider billing reduction is claimed. See
 [P6.5 Agent Efficiency Qualification](evidence/P6.5-AGENT-EFFICIENCY-QUALIFICATION.md).
 
-P6.6 real repository generalization is active across 15 patch-and-test tasks
+P6.6 real repository generalization is complete across 15 patch-and-test tasks
 on fixed AOS, `trenux_rust`, and TRENUX snapshots. The complete structural
 matrix passes, and the AOS onboarding canary keeps 100% task success while
 reducing total input tokens 31.26%, elapsed time 39.20%, and commands 50%.
-The first complete 60-execution matrix passed every functional and aggregate
-efficiency gate but failed the original maximum per-scenario provider-token
-drift gate. ADR-0015 preserves that failed evidence and requires a new
-independent schema-v2 batch with prompt-bound aggregate repeatability before
-P6.6 can close.
+The independent schema-v2 60-execution matrix keeps 100% task and verification
+success while reducing input tokens 48.948%, elapsed time 23.371%, and commands
+53.383%. Aggregate repeat drift is 0.744%; maximum per-scenario provider-token
+drift remains a visible diagnostic under ADR-0015.
 See
 [P6.6 Real Repository Generalization](evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md).
 

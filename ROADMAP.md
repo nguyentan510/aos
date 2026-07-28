@@ -1,7 +1,7 @@
 # AOS Roadmap
 
 **Status:** Canonical delivery sequence
-**Current maturity:** P6, P6.2 accelerated qualification, and P6.3 installation/DX complete; P6.6 qualification remains active
+**Current maturity:** P6 through P6.6 qualification complete; P7 remains planned pending a measured bottleneck
 **Next eligible phase:** P7 only after qualification evidence and a measured scale need
 **Maturity model:** Evidence-gated capabilities, not promised release dates
 
@@ -428,7 +428,7 @@ exit route while preserving the historical calendar evidence.
 
 ### P6.6 real repository generalization
 
-**Status:** `ACTIVE`
+**Status:** `COMPLETE`
 
 P6.6 tests the P6.5 consumer capsule across 15 patch-and-test tasks on three
 immutable repository snapshots: AOS, `trenux_rust`, and TRENUX. Each repository
@@ -448,14 +448,17 @@ ADR-0015 keeps the failed v1 result immutable and requires a new independent
 aggregate workload drift while retaining maximum scenario drift as a
 diagnostic.
 
-P6.6 remains active until all 60 executions pass the aggregate evaluator and
-emit `AOS_P6_6_REAL_REPOSITORY_GENERALIZATION_OK`. It does not close P6.2,
-activate P7, or change AOS Core semantics.
+The independent v2 matrix passes 60/60 executions with 48.948% input-token,
+23.371% elapsed-time, and 53.383% command reduction. Aggregate repeat drift is
+0.744%, prompt hashes repeat, and the evaluator emits
+`AOS_P6_6_REAL_REPOSITORY_GENERALIZATION_OK`. This does not automatically
+activate P7 or change AOS Core semantics.
 
 **Implementation baseline:** Commit
 `901d3916c74ecf7d425735ca4ee6a3c8acba2af9` passes GitHub Actions run
 `30326531785` on Windows and Ubuntu, including the P6.6 evaluator smoke. This
-does not change the `ACTIVE` status of the real-consumer gate.
+qualified the original implementation only; the independent schema-v2
+consumer evidence above subsequently closed the gate.
 
 ## P7 — Scale and Distributed Runtime
 

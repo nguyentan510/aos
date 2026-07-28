@@ -132,7 +132,7 @@ requireText(".github/workflows/ci.yml", [
   "run_p6_6_resume_smoke.ps1",
 ]);
 requireText("evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md", [
-  "**Status:** `ACTIVE`",
+  "**Status:** `COMPLETE`",
   "p4-20260728T033336Z",
   "p4-ai-20260727T154640Z",
   "30326531785",
@@ -140,6 +140,8 @@ requireText("evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md", [
   "60/60",
   "41.835%",
   "24.557%",
+  "48.948%",
+  "0.744%",
   "ADR-0015",
   "AOS_P6_6_RESUMABLE_RUNNER_OK",
   "usage limit",
@@ -153,11 +155,11 @@ requireText("adr/0015-p6-6-provider-neutral-repeatability-metric.md", [
 ]);
 requireText("ROADMAP.md", [
   "### P6.6 real repository generalization",
-  "**Status:** `ACTIVE`",
+  "**Status:** `COMPLETE`",
   "60 valid consumer executions",
 ]);
 requireText("README.md", [
-  "P6.6 real repository generalization is active",
+  "P6.6 real repository generalization is complete",
   "P6.6-REAL-REPOSITORY-GENERALIZATION.md",
 ]);
 
