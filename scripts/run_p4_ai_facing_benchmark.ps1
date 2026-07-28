@@ -494,6 +494,9 @@ source files actually used, and benchmark_result PASS.
         prompt_path = $promptPath
         event_path = $eventPath
         patch_path = $patchPath
+        prompt_sha256 = Get-P6_6FileSha256 -Path $promptPath
+        event_sha256 = Get-P6_6FileSha256 -Path $eventPath
+        patch_sha256 = Get-P6_6FileSha256 -Path $patchPath
         stderr_summary = if ($result.ExitCode -eq 0) { "" } else { $result.Stderr.Trim() }
     }
 }

@@ -74,3 +74,4 @@ documents and specifications in the same change.
 | [ADR-0010](0010-p6-governed-declarative-extension-ecosystem.md) | Accepted | P6 binds declarative extensions to governed Work, allowlisted host operations, exact scope, and immutable provenance |
 | [ADR-0011](0011-p6-3-one-command-installation-and-setup.md) | Accepted | P6.3 adds governed one-command setup and checksum-verified distribution installers while isolating the active P6.2 evidence lane |
 | [ADR-0012](0012-p6-2-accelerated-qualification.md) | Accepted | P6.2 may close through eight pinned accelerated samples while preserving the separate calendar evidence truth |
+| [ADR-0015](0015-p6-6-provider-neutral-repeatability-metric.md) | Accepted | P6.6 separates provider cache variance from prompt-bound aggregate workload repeatability |

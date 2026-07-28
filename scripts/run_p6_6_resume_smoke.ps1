@@ -71,6 +71,8 @@ try {
     Write-P6_6Checkpoint -Path $checkpointPath -Checkpoint $checkpoint
 
     $loaded = Read-P6_6Checkpoint -Path $checkpointPath
+    Write-P6_6Checkpoint -Path $checkpointPath -Checkpoint $loaded
+    $loaded = Read-P6_6Checkpoint -Path $checkpointPath
     Assert-P6_6CheckpointConfig `
         -Checkpoint $loaded `
         -Model "smoke-model" `

@@ -107,6 +107,7 @@ function Write-P6_6Checkpoint([string]$Path, [object]$Checkpoint) {
     }
     $Checkpoint.updated_at_utc = [DateTime]::UtcNow.ToString("o")
     $temporary = "$Path.$([guid]::NewGuid().ToString('N')).tmp"
+    $backup = "$Path.$([guid]::NewGuid().ToString('N')).bak"
     try {
         [System.IO.File]::WriteAllText(
             $temporary,
@@ -114,12 +115,13 @@ function Write-P6_6Checkpoint([string]$Path, [object]$Checkpoint) {
             $script:P6_6Utf8NoBom
         )
         if (Test-Path -LiteralPath $Path -PathType Leaf) {
-            [System.IO.File]::Replace($temporary, $Path, $null, $true)
+            [System.IO.File]::Replace($temporary, $Path, $backup, $true)
         } else {
             [System.IO.File]::Move($temporary, $Path)
         }
     } finally {
         Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
     }
 }
 

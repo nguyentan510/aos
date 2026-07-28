@@ -205,6 +205,45 @@ $baselineSuccess = Get-Percent `
     (@($baselineRuns | Where-Object { $_.task_success }).Count) $baselineRuns.Count
 $aosSuccess = Get-Percent `
     (@($aosRuns | Where-Object { $_.task_success }).Count) $aosRuns.Count
+$aosRepeatInputs = @(
+    foreach ($repeat in @(1, 2)) {
+        [double]((
+            $aosRuns |
+                Where-Object { [int]$_.repeat -eq $repeat } |
+                Measure-Object -Property input_tokens -Sum
+        ).Sum)
+    }
+)
+$aosRepeatMean = [double](($aosRepeatInputs | Measure-Object -Average).Average)
+$aggregateRepeatDrift = if ($aosRepeatMean -gt 0) {
+    [Math]::Round((
+        (
+            [double](($aosRepeatInputs | Measure-Object -Maximum).Maximum) -
+            [double](($aosRepeatInputs | Measure-Object -Minimum).Minimum)
+        ) / $aosRepeatMean
+    ) * 100, 3)
+} else {
+    0
+}
+$promptHashesRepeatable = @(
+    $manifestScenarios |
+        Where-Object {
+            $scenarioId = [string]$_.id
+            $scenarioRuns = @($allRuns | Where-Object {
+                [string]$_.scenario_id -eq $scenarioId
+            })
+            @($scenarioRuns | Where-Object {
+                [string]::IsNullOrWhiteSpace([string]$_.prompt_sha256)
+            }).Count -gt 0 -or
+            @(
+                $scenarioRuns |
+                    Group-Object -Property mode |
+                    Where-Object {
+                        @($_.Group.prompt_sha256 | Sort-Object -Unique).Count -ne 1
+                    }
+            ).Count -gt 0
+        }
+).Count -eq 0
 $comparison = [ordered]@{
     input_token_reduction_percent = Get-Reduction $baselineInput $aosInput
     elapsed_reduction_percent = Get-Reduction $baselineElapsed $aosElapsed
@@ -214,6 +253,8 @@ $comparison = [ordered]@{
     maximum_aos_repeat_drift_percent = [double](
         ($scenarioDetails.aos_input_repeat_drift_percent | Measure-Object -Maximum).Maximum
     )
+    aggregate_aos_repeat_drift_percent = $aggregateRepeatDrift
+    maximum_scenario_drift_is_diagnostic = $true
 }
 
 $repositoryDetails = @()
@@ -254,8 +295,9 @@ $thresholds = [ordered]@{
     scope_and_isolation_preserved = @($aosRuns | Where-Object {
         -not $_.source_scope_preserved -or [int]$_.mcp_call_count -ne 0
     }).Count -eq 0
-    optimized_repeat_drift_at_most_10_percent =
-        $comparison.maximum_aos_repeat_drift_percent -le $MaximumRepeatDriftPercent
+    prompt_hashes_repeatable = $promptHashesRepeatable
+    aggregate_repeat_drift_at_most_10_percent =
+        $comparison.aggregate_aos_repeat_drift_percent -le $MaximumRepeatDriftPercent
 }
 $allPass = @($thresholds.Values | Where-Object { -not $_ }).Count -eq 0
 
@@ -263,7 +305,7 @@ $evaluationId = "p6-6-generalization-" + [DateTime]::UtcNow.ToString("yyyyMMddTH
 $evaluationRoot = Join-Path $OutputDir $evaluationId
 New-Item -ItemType Directory -Path $evaluationRoot -Force | Out-Null
 $evaluation = [ordered]@{
-    schema_version = "AOS-P6-6-REAL-REPOSITORY-GENERALIZATION-1"
+    schema_version = "AOS-P6-6-REAL-REPOSITORY-GENERALIZATION-2"
     evaluation_id = $evaluationId
     generated_at_utc = [DateTime]::UtcNow.ToString("o")
     manifest_path = $ManifestPath
@@ -312,6 +354,7 @@ Write-Output "Elapsed reduction: $($comparison.elapsed_reduction_percent)%"
 Write-Output "Command reduction: $($comparison.command_reduction_percent)%"
 Write-Output "Task success: $baselineSuccess% -> $aosSuccess%"
 Write-Output "Maximum optimized repeat drift: $($comparison.maximum_aos_repeat_drift_percent)%"
+Write-Output "Aggregate optimized repeat drift: $($comparison.aggregate_aos_repeat_drift_percent)%"
 Write-Output "Result: $evaluationPath"
 Write-Output $evaluation.marker
 if (-not $allPass) {

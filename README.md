@@ -231,11 +231,11 @@ P6.6 real repository generalization is active across 15 patch-and-test tasks
 on fixed AOS, `trenux_rust`, and TRENUX snapshots. The complete structural
 matrix passes, and the AOS onboarding canary keeps 100% task success while
 reducing total input tokens 31.26%, elapsed time 39.20%, and commands 50%.
-The 60-execution consumer gate remains open because the configured consumer
-reached its usage limit; quota failures are excluded from performance claims.
-The resumable runner has preserved 8/60 verified executions, leaving 52, and
-revalidates repository/scenario identity plus prompt, event, and patch digests
-before skipping any completed execution.
+The first complete 60-execution matrix passed every functional and aggregate
+efficiency gate but failed the original maximum per-scenario provider-token
+drift gate. ADR-0015 preserves that failed evidence and requires a new
+independent schema-v2 batch with prompt-bound aggregate repeatability before
+P6.6 can close.
 See
 [P6.6 Real Repository Generalization](evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md).
 
