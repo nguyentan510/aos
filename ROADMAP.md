@@ -435,6 +435,11 @@ P6.6 remains active until all 60 executions pass the aggregate evaluator and
 emit `AOS_P6_6_REAL_REPOSITORY_GENERALIZATION_OK`. It does not close P6.2,
 activate P7, or change AOS Core semantics.
 
+**Implementation baseline:** Commit
+`901d3916c74ecf7d425735ca4ee6a3c8acba2af9` passes GitHub Actions run
+`30326531785` on Windows and Ubuntu, including the P6.6 evaluator smoke. This
+does not change the `ACTIVE` status of the real-consumer gate.
+
 ## P7 — Scale and Distributed Runtime
 
 **Status:** `PLANNED`

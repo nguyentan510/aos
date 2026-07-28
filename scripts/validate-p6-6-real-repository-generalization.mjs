@@ -110,6 +110,7 @@ requireText("evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md", [
   "**Status:** `ACTIVE`",
   "p4-20260728T033336Z",
   "p4-ai-20260727T154640Z",
+  "30326531785",
   "31.26%",
   "usage limit",
   "AOS_P6_6_REAL_REPOSITORY_GENERALIZATION_OK",
