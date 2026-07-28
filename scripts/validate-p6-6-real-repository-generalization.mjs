@@ -83,9 +83,30 @@ for (const [repositoryEnvironment, expectedCommit] of expectedRepositories) {
 
 requireText("scripts/run_p4_ai_facing_benchmark.ps1", [
   'ValidateSet("p4", "p6.5")',
-  "Running $($scenario.id) baseline repeat",
+  "[switch]$Resume",
+  "Resuming $($scenario.id) $mode repeat",
+  "Add-P6_6CheckpointRun",
   "consumer quota unavailable",
   "AOS_P6_6_CONSUMER_BATCH_OK",
+]);
+requireText("scripts/p6_6_checkpoint.ps1", [
+  "AOS-P6-6-RESUME-CHECKPOINT-1",
+  "scenario_digest",
+  "repository_commit",
+  "prompt_sha256",
+  "event_sha256",
+  "patch_sha256",
+  "AOS_P6_6_CHECKPOINT_FAILED",
+]);
+requireText("scripts/import_p6_6_successful_runs.ps1", [
+  "AOS_P6_6_SUCCESSFUL_RUN_IMPORT_OK",
+  "verification replay failed",
+  "changed-file scope mismatch",
+]);
+requireText("scripts/run_p6_6_resume_smoke.ps1", [
+  "Tamper denial: PASS",
+  "Conflicting duplicate denial: PASS",
+  "AOS_P6_6_RESUMABLE_RUNNER_OK",
 ]);
 requireText("scripts/evaluate_p6_6_real_repository_generalization.ps1", [
   "AOS-P6-6-REAL-REPOSITORY-GENERALIZATION-1",
@@ -105,6 +126,8 @@ requireText("scripts/run_p6_6_evaluator_smoke.ps1", [
 requireText(".github/workflows/ci.yml", [
   "P6.6 real-repository evaluator smoke",
   "run_p6_6_evaluator_smoke.ps1",
+  "P6.6 resumable runner smoke",
+  "run_p6_6_resume_smoke.ps1",
 ]);
 requireText("evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md", [
   "**Status:** `ACTIVE`",
@@ -112,6 +135,9 @@ requireText("evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md", [
   "p4-ai-20260727T154640Z",
   "30326531785",
   "31.26%",
+  "8/60",
+  "52",
+  "AOS_P6_6_RESUMABLE_RUNNER_OK",
   "usage limit",
   "AOS_P6_6_REAL_REPOSITORY_GENERALIZATION_OK",
   "Production-ready claim:",

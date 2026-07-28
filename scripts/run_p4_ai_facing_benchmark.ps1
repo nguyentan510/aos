@@ -6,6 +6,8 @@ param(
     [string]$Model = "gpt-5.6-sol",
     [string]$CodexPackage = "@openai/codex@0.145.0",
     [string]$ScenarioId,
+    [string]$CheckpointPath,
+    [switch]$Resume,
     [ValidateSet("p4", "p6.5")]
     [string]$AgentPolicy = "p4",
     [ValidateRange(1, 3)]
@@ -18,6 +20,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptRoot "p6_6_checkpoint.ps1")
 if ([string]::IsNullOrWhiteSpace($ManifestPath)) {
     $ManifestPath = Join-Path $scriptRoot "..\benchmarks\p4\scenarios.json"
 }
@@ -30,6 +33,9 @@ if ([string]::IsNullOrWhiteSpace($AosBinary)) {
 $ManifestPath = [System.IO.Path]::GetFullPath($ManifestPath)
 $OutputDir = [System.IO.Path]::GetFullPath($OutputDir)
 $AosBinary = [System.IO.Path]::GetFullPath($AosBinary)
+if (-not [string]::IsNullOrWhiteSpace($CheckpointPath)) {
+    $CheckpointPath = [System.IO.Path]::GetFullPath($CheckpointPath)
+}
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 function Fail([string]$Message) {
@@ -331,6 +337,7 @@ source files actually used, and benchmark_result PASS.
     $matchedTerms = @($terms | Where-Object { $answer.IndexOf([string]$_, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
     $changedFiles = @()
     $verification = $null
+    $patchPath = Join-Path $RunRoot "$($Scenario.id).$Mode.r$Repeat.patch.diff"
     if ($PatchMode) {
         $status = Invoke-Native -File "git" -Arguments @("status", "--porcelain") -WorkingDirectory $agentRepositoryPath
         $changedFiles = @(
@@ -343,6 +350,15 @@ source files actually used, and benchmark_result PASS.
             "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
             [string]$Scenario.verification_command
         ) -WorkingDirectory $agentRepositoryPath
+        $patch = Invoke-Native -File "git" `
+            -Arguments @("diff", "--binary", "HEAD", "--") `
+            -WorkingDirectory $agentRepositoryPath
+        if ($patch.ExitCode -ne 0) {
+            Fail "cannot capture patch for $($Scenario.id) $Mode repeat $Repeat"
+        }
+        Write-Utf8NoBom -Path $patchPath -Content $patch.Stdout
+    } else {
+        Write-Utf8NoBom -Path $patchPath -Content ""
     }
     $firstPatchSeconds = $null
     if ($PatchMode -and $changedFiles.Count -gt 0) {
@@ -477,6 +493,7 @@ source files actually used, and benchmark_result PASS.
         verification_output = if ($verification) { $verification.Stdout.Trim() } else { "" }
         prompt_path = $promptPath
         event_path = $eventPath
+        patch_path = $patchPath
         stderr_summary = if ($result.ExitCode -eq 0) { "" } else { $result.Stderr.Trim() }
     }
 }
@@ -486,6 +503,14 @@ if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
 }
 if (-not (Test-Path -LiteralPath $AosBinary -PathType Leaf)) {
     Fail "AOS binary does not exist: $AosBinary; run cargo build --locked first"
+}
+if ($Resume -and [string]::IsNullOrWhiteSpace($CheckpointPath)) {
+    Fail "-Resume requires -CheckpointPath"
+}
+if (-not $Resume -and -not [string]::IsNullOrWhiteSpace($CheckpointPath) -and (
+    Test-Path -LiteralPath $CheckpointPath
+)) {
+    Fail "checkpoint already exists; use -Resume to preserve completed runs"
 }
 
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
@@ -508,6 +533,27 @@ if ($selectedScenarios.Count -eq 0 -or (
     $selectedScenarios.Count -ne $requestedScenarioIds.Count
 )) {
     Fail "one or more scenarios do not exist in manifest: $ScenarioId"
+}
+$checkpoint = $null
+if (-not [string]::IsNullOrWhiteSpace($CheckpointPath)) {
+    if (Test-Path -LiteralPath $CheckpointPath -PathType Leaf) {
+        $checkpoint = Read-P6_6Checkpoint -Path $CheckpointPath
+        Assert-P6_6CheckpointConfig `
+            -Checkpoint $checkpoint `
+            -Model $Model `
+            -Provider "codex-chatgpt" `
+            -CodexPackage $CodexPackage `
+            -AgentPolicy $AgentPolicy `
+            -Repeats $Repeats
+    } else {
+        $checkpoint = New-P6_6Checkpoint `
+            -Model $Model `
+            -Provider "codex-chatgpt" `
+            -CodexPackage $CodexPackage `
+            -AgentPolicy $AgentPolicy `
+            -Repeats $Repeats
+        Write-P6_6Checkpoint -Path $CheckpointPath -Checkpoint $checkpoint
+    }
 }
 $runId = "p4-ai-" + [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ")
 $runRoot = Join-Path $OutputDir $runId
@@ -550,6 +596,7 @@ $repositoryEnvironments = @(
 )
 $originalRepositoryEnvironments = @{}
 $snapshotByEnvironment = @{}
+$resolvedCommitByEnvironment = @{}
 $repositoryCommits = [ordered]@{}
 foreach ($name in $repositoryEnvironments) {
     $source = [Environment]::GetEnvironmentVariable($name)
@@ -573,6 +620,7 @@ foreach ($name in $repositoryEnvironments) {
         -Target $snapshotPath `
         -Commit $expectedCommits[0]
     $snapshotByEnvironment[$name] = $snapshotPath
+    $resolvedCommitByEnvironment[$name] = $resolvedCommit
     $repositoryCommits[$snapshotName] = $resolvedCommit
     [Environment]::SetEnvironmentVariable($name, $snapshotPath)
 }
@@ -616,10 +664,47 @@ try {
         $contextJson = $contextEnvelope.data | ConvertTo-Json -Depth 8 -Compress
         for ($repeat = 1; $repeat -le $Repeats; $repeat++) {
             $patchMode = [string]$manifest.qualification_level -eq "patch-and-test"
-            Write-Output "Running $($scenario.id) baseline repeat $repeat/$Repeats"
-            $allRuns += Invoke-CodexRun -Scenario $scenario -RepositoryPath $repositoryPath -SourceRepositoryPath $repositoryPath -Mode "baseline" -ContextJson "" -Repeat $repeat -RunRoot $runRoot -PatchMode $patchMode
-            Write-Output "Running $($scenario.id) aos repeat $repeat/$Repeats"
-            $allRuns += Invoke-CodexRun -Scenario $scenario -RepositoryPath $repositoryPath -SourceRepositoryPath $repositoryPath -Mode "aos" -ContextJson $contextJson -Repeat $repeat -RunRoot $runRoot -PatchMode $patchMode
+            foreach ($mode in @("baseline", "aos")) {
+                $cachedRun = $null
+                if ($Resume) {
+                    $cachedRun = Get-P6_6CheckpointRun `
+                        -Checkpoint $checkpoint `
+                        -Scenario $scenario `
+                        -Mode $mode `
+                        -Repeat $repeat `
+                        -RepositoryCommit ([string]$resolvedCommitByEnvironment[
+                            [string]$scenario.repository_env
+                        ])
+                }
+                if ($null -ne $cachedRun) {
+                    Write-Output "Resuming $($scenario.id) $mode repeat $repeat/$Repeats from verified checkpoint"
+                    $allRuns += $cachedRun
+                    continue
+                }
+                Write-Output "Running $($scenario.id) $mode repeat $repeat/$Repeats"
+                $run = Invoke-CodexRun `
+                    -Scenario $scenario `
+                    -RepositoryPath $repositoryPath `
+                    -SourceRepositoryPath $repositoryPath `
+                    -Mode $mode `
+                    -ContextJson $(if ($mode -eq "aos") { $contextJson } else { "" }) `
+                    -Repeat $repeat `
+                    -RunRoot $runRoot `
+                    -PatchMode $patchMode
+                $allRuns += $run
+                if ($null -ne $checkpoint -and $run.task_success -and $run.verification_passed) {
+                    Add-P6_6CheckpointRun `
+                        -Checkpoint $checkpoint `
+                        -Run $run `
+                        -Scenario $scenario `
+                        -RepositoryCommit ([string]$resolvedCommitByEnvironment[
+                            [string]$scenario.repository_env
+                        ]) | Out-Null
+                    Write-P6_6Checkpoint `
+                        -Path $CheckpointPath `
+                        -Checkpoint $checkpoint
+                }
+            }
         }
     }
 } finally {
@@ -765,6 +850,11 @@ $result = [ordered]@{
     status = if ($allPass) { "PASS" } else { "FAIL" }
     pass_marker = $marker
     structural_result = $structuralResultPath
+    checkpoint_path = if ([string]::IsNullOrWhiteSpace($CheckpointPath)) {
+        $null
+    } else {
+        $CheckpointPath
+    }
     scenario_timings = $scenarioTimings
     runs = $allRuns
 }

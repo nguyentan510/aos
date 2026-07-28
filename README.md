@@ -233,6 +233,9 @@ matrix passes, and the AOS onboarding canary keeps 100% task success while
 reducing total input tokens 31.26%, elapsed time 39.20%, and commands 50%.
 The 60-execution consumer gate remains open because the configured consumer
 reached its usage limit; quota failures are excluded from performance claims.
+The resumable runner has preserved 8/60 verified executions, leaving 52, and
+revalidates repository/scenario identity plus prompt, event, and patch digests
+before skipping any completed execution.
 See
 [P6.6 Real Repository Generalization](evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md).
 

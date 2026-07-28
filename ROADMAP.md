@@ -443,6 +443,12 @@ temporarily blocked by the configured consumer usage limit and is not counted
 as product failure or PASS evidence. See
 [`P6.6 Real Repository Generalization`](evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md).
 
+P6.6.1 adds fail-closed resumability. Eight successful verified executions
+from two complete AOS scenarios are preserved with scenario, repository,
+prompt, event, and patch digests; 52 executions remain. Resume reuses only
+matching evidence and rejects tampering, configuration drift, and conflicting
+duplicates.
+
 P6.6 remains active until all 60 executions pass the aggregate evaluator and
 emit `AOS_P6_6_REAL_REPOSITORY_GENERALIZATION_OK`. It does not close P6.2,
 activate P7, or change AOS Core semantics.

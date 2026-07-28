@@ -103,3 +103,7 @@ jobs:
       - name: P6.6 real-repository evaluator smoke
         shell: pwsh
         run: ./scripts/run_p6_6_evaluator_smoke.ps1
+
+      - name: P6.6 resumable runner smoke
+        shell: pwsh
+        run: ./scripts/run_p6_6_resume_smoke.ps1
