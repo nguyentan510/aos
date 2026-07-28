@@ -1,7 +1,7 @@
 # AOS Roadmap
 
 **Status:** Canonical delivery sequence
-**Current maturity:** P6 and P6.3 installation/DX complete; P6.2 qualification remains active
+**Current maturity:** P6 and P6.3 installation/DX complete; P6.2 and P6.6 qualifications remain active
 **Next eligible phase:** P7 only after qualification evidence and a measured scale need
 **Maturity model:** Evidence-gated capabilities, not promised release dates
 
@@ -413,6 +413,27 @@ passes Windows and Ubuntu for implementation commit
 P6.5 deterministic evaluator gates.
 
 P6.5 does not activate P7 or change the separate P6.2 real-duration gate.
+
+### P6.6 real repository generalization
+
+**Status:** `ACTIVE`
+
+P6.6 tests the P6.5 consumer capsule across 15 patch-and-test tasks on three
+immutable repository snapshots: AOS, `trenux_rust`, and TRENUX. Each repository
+has onboarding, architecture-owner, bugfix, feature, and
+documentation-consistency tasks, with two baseline and two AOS executions per
+task. The closeout gate therefore requires 60 valid consumer executions.
+
+The 15-scenario structural matrix passes, and the first four-execution AOS
+canary preserves 100% task success while reducing total input tokens 31.26%,
+elapsed time 39.20%, and commands 50%. The remaining real-consumer run is
+temporarily blocked by the configured consumer usage limit and is not counted
+as product failure or PASS evidence. See
+[`P6.6 Real Repository Generalization`](evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md).
+
+P6.6 remains active until all 60 executions pass the aggregate evaluator and
+emit `AOS_P6_6_REAL_REPOSITORY_GENERALIZATION_OK`. It does not close P6.2,
+activate P7, or change AOS Core semantics.
 
 ## P7 — Scale and Distributed Runtime
 

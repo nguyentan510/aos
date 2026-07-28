@@ -99,3 +99,7 @@ jobs:
             'tests/fixtures/p6-5-efficiency/result-2.json'
           )
           ./scripts/evaluate_p6_5_agent_efficiency_repeats.ps1 -ResultPath $results
+
+      - name: P6.6 real-repository evaluator smoke
+        shell: pwsh
+        run: ./scripts/run_p6_6_evaluator_smoke.ps1

@@ -12,6 +12,7 @@ const validators = [
   "validate-p6-3-installation-dx.mjs",
   "validate-p6-4-controlled-adoption.mjs",
   "validate-p6-5-agent-efficiency.mjs",
+  "validate-p6-6-real-repository-generalization.mjs",
 ];
 
 for (const validator of validators) {

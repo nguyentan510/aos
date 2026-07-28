@@ -1,0 +1,442 @@
+{
+  "schema_version": "AOS-P4-BENCHMARK-1",
+  "qualification_level": "patch-and-test",
+  "description": "P6.6 real-repository generalization tasks over three immutable Git snapshots.",
+  "default_context_profile": "compact",
+  "default_context_budget_bytes": 1600,
+  "scenarios": [
+    {
+      "id": "aos-real-onboarding",
+      "repository_env": "AOS_REPO",
+      "expected_commit": "f7de2d56cf1b400b47cb316f429e8bc38b0b5c8c",
+      "task_type": "onboarding",
+      "task": "Add a concise README subsection with the exact heading 'AI context handoff'. Explain that the AOS source repository produces the CLI distribution, downstream .aos stores project control data, and context remains provider-neutral.",
+      "expected_terms": ["README.md", "DESIGN.md", ".aos"],
+      "expected_patch_files": ["README.md"],
+      "verification_command": "if (-not (Select-String -Path 'README.md' -SimpleMatch '## AI context handoff' -Quiet)) { exit 1 }; node scripts/validate-aos.mjs",
+      "baseline_files": ["README.md", "DESIGN.md", "ROADMAP.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "aos-product-handoff",
+          "subject": "AOS product and downstream boundary",
+          "source_reference": "README.md",
+          "content": "README.md owns the user-facing handoff: AOS source builds the CLI distribution, while downstream repositories own their .aos project control data."
+        },
+        {
+          "kind": "State",
+          "id": "aos-provider-neutral-context",
+          "subject": "AOS context consumer boundary",
+          "source_reference": "DESIGN.md",
+          "value": "Context packages remain provider-neutral and do not grant authority to a consumer.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "aos-real-owner",
+      "repository_env": "AOS_REPO",
+      "expected_commit": "f7de2d56cf1b400b47cb316f429e8bc38b0b5c8c",
+      "task_type": "architecture-owner",
+      "task": "Add one concise DESIGN.md paragraph with the exact heading 'Setup implementation ownership'. State that src/setup.rs orchestrates setup while src/extension.rs retains extension validation and lifecycle ownership; setup must not bypass Governance.",
+      "expected_terms": ["DESIGN.md", "src/setup.rs", "src/extension.rs"],
+      "expected_patch_files": ["DESIGN.md"],
+      "verification_command": "if (-not (Select-String -Path 'DESIGN.md' -SimpleMatch 'Setup implementation ownership' -Quiet)) { exit 1 }; node scripts/validate-aos.mjs",
+      "baseline_files": ["DESIGN.md", "src/setup.rs", "src/extension.rs"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "aos-setup-owner",
+          "subject": "setup orchestration owner",
+          "source_reference": "src/setup.rs",
+          "content": "src/setup.rs owns setup planning and orchestration; it delegates bundled extension enablement through the accepted extension implementation."
+        },
+        {
+          "kind": "Knowledge",
+          "id": "aos-extension-owner",
+          "subject": "extension lifecycle owner",
+          "source_reference": "src/extension.rs",
+          "content": "src/extension.rs owns manifest validation, lifecycle, Governance binding, scope checks, and immutable extension evidence."
+        }
+      ]
+    },
+    {
+      "id": "aos-real-bugfix",
+      "repository_env": "AOS_REPO",
+      "expected_commit": "f7de2d56cf1b400b47cb316f429e8bc38b0b5c8c",
+      "task_type": "bugfix",
+      "task": "Strengthen the existing context smoke test with a regression assertion proving that authority_proposed appears exactly once in the output while the authoritative record remains selected. Use body.matches(...).count() and change only tests/cli_smoke.rs.",
+      "expected_terms": ["tests/cli_smoke.rs", "authority_proposed"],
+      "expected_patch_files": ["tests/cli_smoke.rs"],
+      "verification_command": "cargo test --test cli_smoke context_is_deterministic_and_explains_withheld_records",
+      "baseline_files": ["src/intelligence.rs", "tests/cli_smoke.rs"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "aos-context-policy-owner",
+          "subject": "context filtering implementation",
+          "source_reference": "src/intelligence.rs",
+          "content": "Context filtering distinguishes authoritative selected records from proposed records withheld with authority_proposed."
+        },
+        {
+          "kind": "State",
+          "id": "aos-context-smoke-owner",
+          "subject": "context regression coverage",
+          "source_reference": "tests/cli_smoke.rs",
+          "value": "The deterministic context smoke is the narrow regression target for selected and withheld records.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "aos-real-feature",
+      "repository_env": "AOS_REPO",
+      "expected_commit": "f7de2d56cf1b400b47cb316f429e8bc38b0b5c8c",
+      "task_type": "feature",
+      "task": "Add the smallest CLI specification clarification under compact context: selected records retain source_reference, withheld records retain an explicit reason, and byte-budget enforcement is deterministic. Change only specifications/004-cli.md.",
+      "expected_terms": ["specifications/004-cli.md", "source_reference", "budget"],
+      "expected_patch_files": ["specifications/004-cli.md"],
+      "verification_command": "node scripts/validate-aos.mjs",
+      "baseline_files": ["specifications/004-cli.md", "src/intelligence.rs", "tests/cli_smoke.rs"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "aos-compact-cli-contract",
+          "subject": "compact context public contract",
+          "source_reference": "specifications/004-cli.md",
+          "content": "The CLI specification owns compact context provenance, withholding explanation, and deterministic byte-budget requirements."
+        },
+        {
+          "kind": "State",
+          "id": "aos-compact-runtime-proof",
+          "subject": "compact context implementation proof",
+          "source_reference": "tests/cli_smoke.rs",
+          "value": "CLI smoke tests verify source_reference retention, explicit withholding reasons, and deterministic budget behavior.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "aos-real-doc-consistency",
+      "repository_env": "AOS_REPO",
+      "expected_commit": "f7de2d56cf1b400b47cb316f429e8bc38b0b5c8c",
+      "task_type": "docs-consistency",
+      "task": "Add one concise sentence to the P6.5 ROADMAP section stating exactly that consumer-adapter optimization does not close the P6.2 real-duration gate or activate P7.",
+      "expected_terms": ["ROADMAP.md", "P6.2", "P7"],
+      "expected_patch_files": ["ROADMAP.md"],
+      "verification_command": "if (-not (Select-String -Path 'ROADMAP.md' -SimpleMatch 'does not close the P6.2 real-duration gate or activate P7' -Quiet)) { exit 1 }; node scripts/validate-aos.mjs",
+      "baseline_files": ["ROADMAP.md", "evidence/P6.5-AGENT-EFFICIENCY-QUALIFICATION.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "aos-p6-5-boundary",
+          "subject": "P6.5 maturity boundary",
+          "source_reference": "ROADMAP.md",
+          "content": "P6.5 is a consumer-adapter efficiency qualification and must not advance P6.2 elapsed time or P7 eligibility."
+        },
+        {
+          "kind": "State",
+          "id": "aos-p6-2-active",
+          "subject": "P6.2 qualification state",
+          "source_reference": "ROADMAP.md",
+          "value": "P6.2 remains active on its pinned real-duration evidence lane.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-rust-real-onboarding",
+      "repository_env": "TRENUX_RUST_REPO",
+      "expected_commit": "3297389bd35ff3e8eb129dc74308ec3c8d165bf2",
+      "task_type": "onboarding",
+      "task": "Add a concise implementation-status note with the exact heading 'Runtime evidence boundary'. State that implementation alignment alone cannot justify production-like or production readiness without current runtime evidence.",
+      "expected_terms": ["docs/IMPLEMENTATION_STATUS.md", "runtime evidence"],
+      "expected_patch_files": ["docs/IMPLEMENTATION_STATUS.md"],
+      "verification_command": "if (-not (Select-String -Path 'docs/IMPLEMENTATION_STATUS.md' -SimpleMatch 'Runtime evidence boundary' -Quiet)) { exit 1 }; git diff --check",
+      "baseline_files": ["docs/README.md", "docs/IMPLEMENTATION_STATUS.md", "docs/SOURCE_MAP.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-rust-readiness-owner",
+          "subject": "TRENUX Rust readiness vocabulary",
+          "source_reference": "docs/IMPLEMENTATION_STATUS.md",
+          "content": "Implementation status owns maturity claims and separates implementation alignment from runtime and production evidence."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-rust-runtime-boundary",
+          "subject": "TRENUX Rust current evidence boundary",
+          "source_reference": "docs/IMPLEMENTATION_STATUS.md",
+          "value": "Production-like and production readiness remain fail-closed without current runtime evidence.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-rust-real-owner",
+      "repository_env": "TRENUX_RUST_REPO",
+      "expected_commit": "3297389bd35ff3e8eb129dc74308ec3c8d165bf2",
+      "task_type": "architecture-owner",
+      "task": "Add a concise docs/README.md note with the exact heading 'Dependency-safe implementation order'. Preserve the order Data Layer to Compute Core to Feature to Context and state that later consumers cannot redefine upstream truth.",
+      "expected_terms": ["docs/README.md", "Data Layer", "Compute Core"],
+      "expected_patch_files": ["docs/README.md"],
+      "verification_command": "if (-not (Select-String -Path 'docs/README.md' -SimpleMatch 'Dependency-safe implementation order' -Quiet)) { exit 1 }; git diff --check",
+      "baseline_files": ["docs/README.md", "docs/SOURCE_MAP.md", "docs/IMPLEMENTATION_STATUS.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-rust-layer-order",
+          "subject": "TRENUX Rust dependency order",
+          "source_reference": "docs/README.md",
+          "content": "The canonical dependency order is Data Layer, Compute Core, Feature, then Context; downstream layers consume but do not redefine upstream truth."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-rust-source-map-owner",
+          "subject": "TRENUX Rust ownership navigation",
+          "source_reference": "docs/SOURCE_MAP.md",
+          "value": "SOURCE_MAP maps canonical owners and dependency-safe consumer paths.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-rust-real-bugfix",
+      "repository_env": "TRENUX_RUST_REPO",
+      "expected_commit": "3297389bd35ff3e8eb129dc74308ec3c8d165bf2",
+      "task_type": "bugfix",
+      "task": "Add a source-map clarification with the exact heading 'Validated Data consumer boundary'. State that downstream consumers use validated canonical Data truth rather than unchecked Raw tables.",
+      "expected_terms": ["docs/SOURCE_MAP.md", "canonical Data"],
+      "expected_patch_files": ["docs/SOURCE_MAP.md"],
+      "verification_command": "if (-not (Select-String -Path 'docs/SOURCE_MAP.md' -SimpleMatch 'Validated Data consumer boundary' -Quiet)) { exit 1 }; git diff --check",
+      "baseline_files": ["docs/SOURCE_MAP.md", "docs/TRACEABILITY_MATRIX.md", "docs/IMPLEMENTATION_STATUS.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-rust-canonical-data",
+          "subject": "canonical Data consumption boundary",
+          "source_reference": "docs/SOURCE_MAP.md",
+          "content": "Downstream consumers must bind to validated canonical Data outputs and cannot read unchecked Raw tables as trusted input."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-rust-boundary-target",
+          "subject": "source-map clarification target",
+          "source_reference": "docs/SOURCE_MAP.md",
+          "value": "The source map is the narrow owner for the requested consumer-boundary clarification.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-rust-real-feature",
+      "repository_env": "TRENUX_RUST_REPO",
+      "expected_commit": "3297389bd35ff3e8eb129dc74308ec3c8d165bf2",
+      "task_type": "feature",
+      "task": "Add a concise TRACEABILITY_MATRIX note with the exact heading 'Narrow consumer promotion evidence'. Require an upstream contract reference, implementation owner, verification evidence, and current readiness status.",
+      "expected_terms": ["docs/TRACEABILITY_MATRIX.md", "verification evidence"],
+      "expected_patch_files": ["docs/TRACEABILITY_MATRIX.md"],
+      "verification_command": "if (-not (Select-String -Path 'docs/TRACEABILITY_MATRIX.md' -SimpleMatch 'Narrow consumer promotion evidence' -Quiet)) { exit 1 }; git diff --check",
+      "baseline_files": ["docs/TRACEABILITY_MATRIX.md", "docs/SOURCE_MAP.md", "docs/IMPLEMENTATION_STATUS.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-rust-traceability-owner",
+          "subject": "consumer promotion traceability",
+          "source_reference": "docs/TRACEABILITY_MATRIX.md",
+          "content": "TRACEABILITY_MATRIX owns the link from upstream contract through implementation owner and verification evidence to current readiness."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-rust-promotion-fail-closed",
+          "subject": "consumer promotion policy",
+          "source_reference": "docs/IMPLEMENTATION_STATUS.md",
+          "value": "Promotion remains fail-closed until evidence and readiness fields are current.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-rust-real-doc-consistency",
+      "repository_env": "TRENUX_RUST_REPO",
+      "expected_commit": "3297389bd35ff3e8eb129dc74308ec3c8d165bf2",
+      "task_type": "docs-consistency",
+      "task": "Add one concise IMPLEMENTATION_STATUS.md paragraph with the exact heading 'Promotion evidence checklist'. List contract reference, implementation owner, verification evidence, and readiness status without changing any current maturity value.",
+      "expected_terms": ["docs/IMPLEMENTATION_STATUS.md", "readiness status"],
+      "expected_patch_files": ["docs/IMPLEMENTATION_STATUS.md"],
+      "verification_command": "if (-not (Select-String -Path 'docs/IMPLEMENTATION_STATUS.md' -SimpleMatch 'Promotion evidence checklist' -Quiet)) { exit 1 }; git diff --check",
+      "baseline_files": ["docs/IMPLEMENTATION_STATUS.md", "docs/TRACEABILITY_MATRIX.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-rust-promotion-checklist",
+          "subject": "promotion evidence fields",
+          "source_reference": "docs/TRACEABILITY_MATRIX.md",
+          "content": "A promotion record needs its upstream contract, implementation owner, verification evidence, and current readiness state."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-rust-maturity-preservation",
+          "subject": "maturity preservation constraint",
+          "source_reference": "docs/IMPLEMENTATION_STATUS.md",
+          "value": "Adding a checklist must not promote or otherwise change current maturity values.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-real-onboarding",
+      "repository_env": "TRENUX_REPO",
+      "expected_commit": "020b1ca41824bd0e13d7552136ec6fd1b8ba5f20",
+      "task_type": "onboarding",
+      "task": "Add a concise docs/README.md section with the exact heading 'Pipeline architecture handoff'. Describe Market Data to Data Quality to Feature Engine to Market Context and state that execution is outside these upstream owners.",
+      "expected_terms": ["docs/README.md", "Market Data", "Market Context"],
+      "expected_patch_files": ["docs/README.md"],
+      "verification_command": "if (-not (Select-String -Path 'docs/README.md' -SimpleMatch 'Pipeline architecture handoff' -Quiet)) { exit 1 }; git diff --check",
+      "baseline_files": ["docs/README.md", "docs/BUILD_ORDER.md", "docs/architecture/overview.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-pipeline-handoff",
+          "subject": "TRENUX upstream pipeline",
+          "source_reference": "docs/README.md",
+          "content": "The upstream pipeline flows from Market Data through Data Quality and Feature Engine into Market Context; execution remains a separate downstream owner."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-doc-navigation-owner",
+          "subject": "TRENUX documentation navigation",
+          "source_reference": "docs/README.md",
+          "value": "docs/README.md is the user-facing navigation owner for the pipeline handoff.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-real-owner",
+      "repository_env": "TRENUX_REPO",
+      "expected_commit": "020b1ca41824bd0e13d7552136ec6fd1b8ba5f20",
+      "task_type": "architecture-owner",
+      "task": "Add a BUILD_ORDER.md note with the exact heading 'Risk-before-execution boundary'. State that Signal must pass Risk before Execution and that Execution cannot create strategy or risk decisions.",
+      "expected_terms": ["docs/BUILD_ORDER.md", "Risk", "Execution"],
+      "expected_patch_files": ["docs/BUILD_ORDER.md"],
+      "verification_command": "if (-not (Select-String -Path 'docs/BUILD_ORDER.md' -SimpleMatch 'Risk-before-execution boundary' -Quiet)) { exit 1 }; git diff --check",
+      "baseline_files": ["docs/BUILD_ORDER.md", "docs/execution-core/00_BOUNDARY_AND_OWNERSHIP.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-risk-execution-order",
+          "subject": "risk and execution order",
+          "source_reference": "docs/BUILD_ORDER.md",
+          "content": "The dependency-safe order is Signal, Risk decision, then Execution; Execution does not own strategy or risk logic."
+        },
+        {
+          "kind": "Knowledge",
+          "id": "trenux-execution-owner",
+          "subject": "execution ownership contract",
+          "source_reference": "docs/execution-core/00_BOUNDARY_AND_OWNERSHIP.md",
+          "content": "Execution owns order lifecycle for risk-approved intents and cannot bypass or manufacture a Risk decision."
+        }
+      ]
+    },
+    {
+      "id": "trenux-real-bugfix",
+      "repository_env": "TRENUX_REPO",
+      "expected_commit": "020b1ca41824bd0e13d7552136ec6fd1b8ba5f20",
+      "task_type": "bugfix",
+      "task": "Add a concise IMPLEMENTATION_STATUS.md clarification with the exact heading 'Runtime readiness evidence'. State that docs and implementation alignment do not prove production-like or production readiness.",
+      "expected_terms": ["docs/IMPLEMENTATION_STATUS.md", "production-like"],
+      "expected_patch_files": ["docs/IMPLEMENTATION_STATUS.md"],
+      "verification_command": "if (-not (Select-String -Path 'docs/IMPLEMENTATION_STATUS.md' -SimpleMatch 'Runtime readiness evidence' -Quiet)) { exit 1 }; git diff --check",
+      "baseline_files": ["docs/IMPLEMENTATION_STATUS.md", "docs/ROADMAP.md", "docs/BUILD_ORDER.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-readiness-owner",
+          "subject": "TRENUX readiness claims",
+          "source_reference": "docs/IMPLEMENTATION_STATUS.md",
+          "content": "Implementation status must distinguish documentation, implementation, runtime smoke, production-like, and production evidence."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-readiness-fail-closed",
+          "subject": "TRENUX current readiness constraint",
+          "source_reference": "docs/ROADMAP.md",
+          "value": "Docs and implementation alignment cannot independently establish production-like or production readiness.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-real-feature",
+      "repository_env": "TRENUX_REPO",
+      "expected_commit": "020b1ca41824bd0e13d7552136ec6fd1b8ba5f20",
+      "task_type": "feature",
+      "task": "Add a source-map section with the exact heading 'Validated canonical Data boundary'. State that Feature and Context consume validated canonical Data rather than unchecked Raw tables.",
+      "expected_terms": ["docs/source-map.md", "Feature", "Context"],
+      "expected_patch_files": ["docs/source-map.md"],
+      "verification_command": "if (-not (Select-String -Path 'docs/source-map.md' -SimpleMatch 'Validated canonical Data boundary' -Quiet)) { exit 1 }; git diff --check",
+      "baseline_files": ["docs/source-map.md", "docs/data-foundation/00_ARCHITECTURE_OVERVIEW.md", "docs/feature-engine/00_OVERVIEW.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-canonical-data-boundary",
+          "subject": "validated canonical Data consumers",
+          "source_reference": "docs/source-map.md",
+          "content": "Feature and Context are downstream consumers of validated canonical Data and cannot treat unchecked Raw tables as trusted truth."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-source-map-target",
+          "subject": "canonical Data boundary documentation owner",
+          "source_reference": "docs/source-map.md",
+          "value": "The source map is the narrow target for the requested cross-module consumer clarification.",
+          "freshness": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": "trenux-real-doc-consistency",
+      "repository_env": "TRENUX_REPO",
+      "expected_commit": "020b1ca41824bd0e13d7552136ec6fd1b8ba5f20",
+      "task_type": "docs-consistency",
+      "task": "Add a runtime-flow note with the exact heading 'Unknown execution state'. State that new order actions must pause until order and position state are reconciled.",
+      "expected_terms": ["docs/operations/runtime-flow.md", "reconciled"],
+      "expected_patch_files": ["docs/operations/runtime-flow.md"],
+      "verification_command": "if (-not (Select-String -Path 'docs/operations/runtime-flow.md' -SimpleMatch 'Unknown execution state' -Quiet)) { exit 1 }; git diff --check",
+      "baseline_files": ["docs/operations/runtime-flow.md", "docs/execution-core/00_BOUNDARY_AND_OWNERSHIP.md"],
+      "context_limit": 2,
+      "records": [
+        {
+          "kind": "Knowledge",
+          "id": "trenux-unknown-execution-state",
+          "subject": "unknown execution state policy",
+          "source_reference": "docs/operations/runtime-flow.md",
+          "content": "When order or position state is unknown, new order actions pause until reconciliation restores trusted state."
+        },
+        {
+          "kind": "State",
+          "id": "trenux-runtime-flow-owner",
+          "subject": "runtime flow documentation owner",
+          "source_reference": "docs/operations/runtime-flow.md",
+          "value": "Runtime flow owns the operational reconciliation note requested by this task.",
+          "freshness": "confirmed"
+        }
+      ]
+    }
+  ]
+}

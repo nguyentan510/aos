@@ -6,10 +6,13 @@ param(
     [string]$Model = "gpt-5.6-sol",
     [string]$CodexPackage = "@openai/codex@0.145.0",
     [string]$ScenarioId,
+    [ValidateSet("p4", "p6.5")]
+    [string]$AgentPolicy = "p4",
     [ValidateRange(1, 3)]
     [int]$Repeats = 2,
     [double]$MinimumTokenReductionPercent = 25,
     [double]$MinimumTimeReductionPercent = 20,
+    [double]$MinimumCommandReductionPercent = 20,
     [double]$MaximumSuccessRegressionPercent = 5
 )
 
@@ -24,6 +27,9 @@ if ([string]::IsNullOrWhiteSpace($OutputDir)) {
 if ([string]::IsNullOrWhiteSpace($AosBinary)) {
     $AosBinary = Join-Path $scriptRoot "..\target\debug\aos.exe"
 }
+$ManifestPath = [System.IO.Path]::GetFullPath($ManifestPath)
+$OutputDir = [System.IO.Path]::GetFullPath($OutputDir)
+$AosBinary = [System.IO.Path]::GetFullPath($AosBinary)
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 function Fail([string]$Message) {
@@ -163,7 +169,46 @@ function Invoke-CodexRun(
         Copy-CleanSnapshot -Source $SourceRepositoryPath -Target $agentRepositoryPath -Commit "HEAD" | Out-Null
     }
     $cloneStopwatch.Stop()
-    $modeInstruction = if ($Mode -eq "aos") {
+    $allowedFiles = @(
+        @($Scenario.baseline_files) + @($Scenario.expected_patch_files) |
+            Select-Object -Unique
+    )
+    $capsule = [ordered]@{
+        schema_version = "AOS-P6-5-AGENT-CAPSULE-1"
+        authoritative_context = if ($ContextJson) {
+            $ContextJson | ConvertFrom-Json
+        } else {
+            $null
+        }
+        source_expansion = [ordered]@{
+            allowed = $true
+            allowed_files = $allowedFiles
+            max_files = $allowedFiles.Count
+            batch_initial_read = $true
+        }
+        mutation = [ordered]@{
+            allowed_files = @($Scenario.expected_patch_files)
+            control_root_immutable = ".aos/"
+        }
+        verification = [ordered]@{
+            command = [string]$Scenario.verification_command
+            max_runs = 1
+            combine_final_checks = $true
+        }
+        provider = "provider-neutral"
+    }
+    $modeInstruction = if ($Mode -eq "aos" -and $AgentPolicy -eq "p6.5") {
+        @"
+Use this provider-neutral AOS Agent capsule. Treat its source and mutation
+boundaries as mandatory. Read the allowed source files in one batched initial
+inspection, make only the requested minimal patch, and use one final
+verification tool call. Do not call MCP, scan directories, browse the network,
+or inspect files outside the capsule.
+
+AOS_AGENT_CAPSULE_JSON:
+$($capsule | ConvertTo-Json -Depth 12 -Compress)
+"@
+    } elseif ($Mode -eq "aos") {
         @"
 Use the following authoritative AOS context first. Open repository source only
 when the context is insufficient. Preserve every source reference.
@@ -174,6 +219,14 @@ $ContextJson
     } else {
         @"
 No AOS context is supplied. Discover the answer from the repository.
+"@
+    }
+    $expectedPatchInstruction = if ($AgentPolicy -eq "p6.5") {
+        ""
+    } else {
+        @"
+Expected patch files:
+$(@($Scenario.expected_patch_files) -join ", ")
 "@
     }
     $prompt = if ($PatchMode) {
@@ -195,8 +248,7 @@ $modeInstruction
 Required verification command:
 $($Scenario.verification_command)
 
-Expected patch files:
-$(@($Scenario.expected_patch_files) -join ", ")
+$expectedPatchInstruction
 
 Return the required JSON object with a concise evidence-backed answer, the
 source files actually used, the changed files, verification_passed true only
@@ -225,11 +277,22 @@ source files actually used, and benchmark_result PASS.
     $promptPath = Join-Path $RunRoot "$($Scenario.id).$Mode.r$Repeat.prompt.txt"
     Write-Utf8NoBom -Path $promptPath -Content $prompt
     $agentStartedAtUtc = [DateTime]::UtcNow
-    $result = Invoke-NativeWithInput -File "npx.cmd" -Arguments @(
-        "-y", $CodexPackage, "exec", "--json", "--model", $Model,
+    $codexArguments = @("-y", $CodexPackage, "exec")
+    if ($AgentPolicy -eq "p6.5" -and $Mode -eq "aos") {
+        $codexArguments += @("-c", "mcp_servers={}")
+    }
+    if ($AgentPolicy -eq "p6.5") {
+        $codexArguments += "--ephemeral"
+    }
+    $codexArguments += @(
+        "--json", "--model", $Model,
         "--sandbox", $sandbox, "--cd", $agentRepositoryPath,
         "--output-schema", $schemaPath, "-"
-    ) -WorkingDirectory $agentRepositoryPath -InputText $prompt
+    )
+    $result = Invoke-NativeWithInput -File "npx.cmd" `
+        -Arguments $codexArguments `
+        -WorkingDirectory $agentRepositoryPath `
+        -InputText $prompt
     $eventPath = Join-Path $RunRoot "$($Scenario.id).$Mode.r$Repeat.events.jsonl"
     Write-Utf8NoBom -Path $eventPath -Content $result.Stdout
     $events = @()
@@ -245,12 +308,25 @@ source files actually used, and benchmark_result PASS.
     }
     $completed = @($events | Where-Object { $_.type -eq "turn.completed" }) | Select-Object -Last 1
     $failed = @($events | Where-Object { $_.type -eq "turn.failed" }) | Select-Object -Last 1
+    $usageLimitFailure = @($events | Where-Object {
+        $_.type -eq "error" -and
+        [string]$_.message -match "(?i)(usage limit|purchase more credits|try again at)"
+    }) | Select-Object -Last 1
+    if ($null -ne $usageLimitFailure) {
+        Fail "consumer quota unavailable for $($Scenario.id) $Mode repeat ${Repeat}: $($usageLimitFailure.message)"
+    }
     $messages = @(
         $events |
             Where-Object { $_.type -eq "item.completed" -and $_.item.type -eq "agent_message" } |
             ForEach-Object { [string]$_.item.text }
     )
     $answer = if ($messages.Count -gt 0) { [string]$messages[-1] } else { "" }
+    $structuredAnswer = $null
+    try {
+        $structuredAnswer = $answer | ConvertFrom-Json
+    } catch {
+        $structuredAnswer = $null
+    }
     $terms = @($Scenario.expected_terms)
     $matchedTerms = @($terms | Where-Object { $answer.IndexOf([string]$_, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
     $changedFiles = @()
@@ -299,13 +375,56 @@ source files actually used, and benchmark_result PASS.
     } else {
         $false
     }
+    $exactPatchScope = $changedFiles.Count -eq $expectedPatchFiles.Count -and @(
+        $expectedPatchFiles |
+            Where-Object { $changedFiles -notcontains [string]$_ }
+    ).Count -eq 0
+    $reportedChangedFiles = if ($null -ne $structuredAnswer) {
+        @($structuredAnswer.changed_files)
+    } else {
+        @()
+    }
+    $reportedPatchScope = $reportedChangedFiles.Count -eq $expectedPatchFiles.Count -and @(
+        $expectedPatchFiles |
+            Where-Object { $reportedChangedFiles -notcontains [string]$_ }
+    ).Count -eq 0
+    $reportedSourceFiles = if ($null -ne $structuredAnswer) {
+        @($structuredAnswer.source_files)
+    } else {
+        @()
+    }
+    $sourceScopePreserved = @(
+        $reportedSourceFiles |
+            Where-Object { $allowedFiles -notcontains [string]$_ }
+    ).Count -eq 0
+    $commandEvents = @(
+        $events | Where-Object {
+            $_.type -eq "item.completed" -and
+            $_.item.type -eq "command_execution"
+        }
+    )
+    $mcpEvents = @(
+        $events | Where-Object {
+            $_.type -eq "item.completed" -and
+            $_.item.type -eq "mcp_tool_call"
+        }
+    )
     $taskSuccess = if ($PatchMode) {
         $result.ExitCode -eq 0 -and
             $null -ne $completed -and
             $null -eq $failed -and
             $answer -match '"benchmark_result"\s*:\s*"PASS"' -and
             $patchFilesPresent -and
-            $verificationPassed
+            $verificationPassed -and
+            (
+                $AgentPolicy -ne "p6.5" -or
+                (
+                    $exactPatchScope -and
+                    $reportedPatchScope -and
+                    ($Mode -ne "aos" -or $sourceScopePreserved) -and
+                    ($Mode -ne "aos" -or $mcpEvents.Count -eq 0)
+                )
+            )
     } else {
         $result.ExitCode -eq 0 -and
             $null -ne $completed -and
@@ -326,6 +445,7 @@ source files actually used, and benchmark_result PASS.
         model = $Model
         provider = "codex-chatgpt"
         codex_package = $CodexPackage
+        agent_policy = $AgentPolicy
         status = if ($taskSuccess) { "PASS" } else { "FAIL" }
         task_success = $taskSuccess
         input_tokens = if ($completed) { [int64]$completed.usage.input_tokens } else { 0 }
@@ -342,10 +462,15 @@ source files actually used, and benchmark_result PASS.
         }
         files_read = @($filesRead)
         files_read_count = @($filesRead).Count
+        command_count = $commandEvents.Count
+        mcp_call_count = $mcpEvents.Count
         expected_terms = $terms
         matched_terms = $matchedTerms
         expected_patch_files = $expectedPatchFiles
         changed_files = $changedFiles
+        reported_changed_files = $reportedChangedFiles
+        reported_source_files = $reportedSourceFiles
+        source_scope_preserved = $sourceScopePreserved
         verification_command = if ($PatchMode) { [string]$Scenario.verification_command } else { "" }
         verification_passed = $verificationPassed
         verification_exit_code = if ($verification) { $verification.ExitCode } else { $null }
@@ -362,21 +487,27 @@ if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $AosBinary -PathType Leaf)) {
     Fail "AOS binary does not exist: $AosBinary; run cargo build --locked first"
 }
-foreach ($name in @("AOS_REPO", "TRENUX_RUST_REPO")) {
-    if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
-        Fail "environment variable is not set: $name"
-    }
-}
 
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
 $patchManifest = [string]$manifest.qualification_level -eq "patch-and-test"
-$selectedScenarios = if ([string]::IsNullOrWhiteSpace($ScenarioId)) {
-    @($manifest.scenarios)
+$requestedScenarioIds = @()
+if ([string]::IsNullOrWhiteSpace($ScenarioId)) {
+    $selectedScenarios = @($manifest.scenarios)
 } else {
-    @($manifest.scenarios | Where-Object { [string]$_.id -eq $ScenarioId })
+    $requestedScenarioIds = @(
+        $ScenarioId.Split(",") |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    $selectedScenarios = @($manifest.scenarios | Where-Object {
+        $requestedScenarioIds -contains [string]$_.id
+    })
 }
-if ($selectedScenarios.Count -eq 0) {
-    Fail "scenario does not exist in manifest: $ScenarioId"
+if ($selectedScenarios.Count -eq 0 -or (
+    -not [string]::IsNullOrWhiteSpace($ScenarioId) -and
+    $selectedScenarios.Count -ne $requestedScenarioIds.Count
+)) {
+    Fail "one or more scenarios do not exist in manifest: $ScenarioId"
 }
 $runId = "p4-ai-" + [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ")
 $runRoot = Join-Path $OutputDir $runId
@@ -412,12 +543,39 @@ $agentSchema = [ordered]@{
 }
 Write-Utf8NoBom -Path (Join-Path $runRoot "agent-output-schema.json") -Content ($agentSchema | ConvertTo-Json -Depth 6)
 
-$originalAos = [Environment]::GetEnvironmentVariable("AOS_REPO")
-$originalTrenux = [Environment]::GetEnvironmentVariable("TRENUX_RUST_REPO")
-$aosCommit = Copy-CleanSnapshot -Source $originalAos -Target (Join-Path $snapshotRoot "aos") -Commit "HEAD"
-$trenuxCommit = Copy-CleanSnapshot -Source $originalTrenux -Target (Join-Path $snapshotRoot "trenux-rust") -Commit "3297389bd35ff3e8eb129dc74308ec3c8d165bf2"
-$env:AOS_REPO = Join-Path $snapshotRoot "aos"
-$env:TRENUX_RUST_REPO = Join-Path $snapshotRoot "trenux-rust"
+$repositoryEnvironments = @(
+    $manifest.scenarios |
+        ForEach-Object { [string]$_.repository_env } |
+        Sort-Object -Unique
+)
+$originalRepositoryEnvironments = @{}
+$snapshotByEnvironment = @{}
+$repositoryCommits = [ordered]@{}
+foreach ($name in $repositoryEnvironments) {
+    $source = [Environment]::GetEnvironmentVariable($name)
+    if ([string]::IsNullOrWhiteSpace($source)) {
+        Fail "environment variable is not set: $name"
+    }
+    $expectedCommits = @(
+        $manifest.scenarios |
+            Where-Object { [string]$_.repository_env -eq $name } |
+            ForEach-Object { [string]$_.expected_commit } |
+            Sort-Object -Unique
+    )
+    if ($expectedCommits.Count -ne 1) {
+        Fail "repository environment must bind one expected commit: $name"
+    }
+    $originalRepositoryEnvironments[$name] = $source
+    $snapshotName = $name.ToLowerInvariant().Replace("_repo", "").Replace("_", "-")
+    $snapshotPath = Join-Path $snapshotRoot $snapshotName
+    $resolvedCommit = Copy-CleanSnapshot `
+        -Source $source `
+        -Target $snapshotPath `
+        -Commit $expectedCommits[0]
+    $snapshotByEnvironment[$name] = $snapshotPath
+    $repositoryCommits[$snapshotName] = $resolvedCommit
+    [Environment]::SetEnvironmentVariable($name, $snapshotPath)
+}
 
 try {
     $structuralStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -445,11 +603,9 @@ try {
     $allRuns = @()
     $scenarioTimings = @()
     foreach ($scenario in $selectedScenarios) {
-        $repositoryPath = if ([string]$scenario.repository_env -eq "AOS_REPO") {
-            $env:AOS_REPO
-        } else {
-            $env:TRENUX_RUST_REPO
-        }
+        $repositoryPath = [string]$snapshotByEnvironment[
+            [string]$scenario.repository_env
+        ]
         $contextStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         $contextEnvelope = Invoke-AosContext -FixtureRoot (Join-Path $fixtureRoot $scenario.id) -Scenario $scenario -Manifest $manifest
         $contextStopwatch.Stop()
@@ -460,13 +616,19 @@ try {
         $contextJson = $contextEnvelope.data | ConvertTo-Json -Depth 8 -Compress
         for ($repeat = 1; $repeat -le $Repeats; $repeat++) {
             $patchMode = [string]$manifest.qualification_level -eq "patch-and-test"
+            Write-Output "Running $($scenario.id) baseline repeat $repeat/$Repeats"
             $allRuns += Invoke-CodexRun -Scenario $scenario -RepositoryPath $repositoryPath -SourceRepositoryPath $repositoryPath -Mode "baseline" -ContextJson "" -Repeat $repeat -RunRoot $runRoot -PatchMode $patchMode
+            Write-Output "Running $($scenario.id) aos repeat $repeat/$Repeats"
             $allRuns += Invoke-CodexRun -Scenario $scenario -RepositoryPath $repositoryPath -SourceRepositoryPath $repositoryPath -Mode "aos" -ContextJson $contextJson -Repeat $repeat -RunRoot $runRoot -PatchMode $patchMode
         }
     }
 } finally {
-    $env:AOS_REPO = $originalAos
-    $env:TRENUX_RUST_REPO = $originalTrenux
+    foreach ($name in $repositoryEnvironments) {
+        [Environment]::SetEnvironmentVariable(
+            $name,
+            [string]$originalRepositoryEnvironments[$name]
+        )
+    }
 }
 
 $baselineRuns = @($allRuns | Where-Object { $_.mode -eq "baseline" })
@@ -497,6 +659,16 @@ $aosVerification = [double]((
         ForEach-Object { $_.timing.verification_seconds } |
         Measure-Object -Sum
 ).Sum)
+$baselineCommands = [double]((
+    $baselineRuns |
+        ForEach-Object { $_.command_count } |
+        Measure-Object -Sum
+).Sum)
+$aosCommands = [double]((
+    $aosRuns |
+        ForEach-Object { $_.command_count } |
+        Measure-Object -Sum
+).Sum)
 $firstPatchReduction = if ($baselineFirstPatch -gt 0) {
     100 * (1 - ($aosFirstPatch / $baselineFirstPatch))
 } else { 0 }
@@ -512,6 +684,9 @@ $tokenReduction = if ($baselineTokens -gt 0) {
 $timeReduction = if ($baselineTime -gt 0) {
     100 * (1 - ($aosTime / $baselineTime))
 } else { 0 }
+$commandReduction = if ($baselineCommands -gt 0) {
+    100 * (1 - ($aosCommands / $baselineCommands))
+} else { 0 }
 $contextRepeatable = @(
     $structuralResult.scenarios |
         Where-Object { $_.withheld_count -ne $_.withheld_with_reason }
@@ -525,6 +700,16 @@ $thresholds = [ordered]@{
     withholding_reasons = $contextRepeatable
     repeat_count = $Repeats -ge 2
 }
+if ($AgentPolicy -eq "p6.5") {
+    $thresholds.command_reduction =
+        $commandReduction -ge $MinimumCommandReductionPercent
+    $thresholds.execution_count =
+        $allRuns.Count -ge ($selectedScenarios.Count * $Repeats * 2)
+    $thresholds.scope_safety = @($aosRuns | Where-Object {
+        -not $_.source_scope_preserved -or
+        [int]$_.mcp_call_count -ne 0
+    }).Count -eq 0
+}
 $allPass = @($thresholds.Values | Where-Object { -not $_ }).Count -eq 0
 $qualificationReady = [string]$manifest.qualification_level -eq "patch-and-test" -and @(
     $selectedScenarios |
@@ -533,7 +718,11 @@ $qualificationReady = [string]$manifest.qualification_level -eq "patch-and-test"
             @($_.expected_patch_files).Count -eq 0
         }
 ).Count -eq 0
-$marker = if ($allPass -and $qualificationReady) {
+$marker = if ($AgentPolicy -eq "p6.5" -and $allPass -and $qualificationReady) {
+    "AOS_P6_6_CONSUMER_BATCH_OK"
+} elseif ($AgentPolicy -eq "p6.5") {
+    "AOS_P6_6_CONSUMER_BATCH_NOT_MET"
+} elseif ($allPass -and $qualificationReady) {
     "AOS_P4_VALUE_BENCHMARK_OK"
 } elseif ($allPass) {
     "AOS_P4_AI_FACING_CALIBRATION_OK"
@@ -547,12 +736,10 @@ $result = [ordered]@{
     model = $Model
     provider = "codex-chatgpt"
     codex_package = $CodexPackage
+    agent_policy = $AgentPolicy
     repeats = $Repeats
     scenario_count = $selectedScenarios.Count
-    repository_commits = [ordered]@{
-        aos = $aosCommit
-        trenux_rust = $trenuxCommit
-    }
+    repository_commits = $repositoryCommits
     metrics = [ordered]@{
         baseline_input_tokens = [int64]$baselineTokens
         aos_input_tokens = [int64]$aosTokens
@@ -565,6 +752,9 @@ $result = [ordered]@{
         time_to_first_patch_reduction_percent = [Math]::Round($firstPatchReduction, 2)
         baseline_verification_seconds = [Math]::Round($baselineVerification, 3)
         aos_verification_seconds = [Math]::Round($aosVerification, 3)
+        baseline_command_count = [int]$baselineCommands
+        aos_command_count = [int]$aosCommands
+        command_reduction_percent = [Math]::Round($commandReduction, 2)
         structural_harness_seconds = [Math]::Round($structuralStopwatch.Elapsed.TotalSeconds, 3)
         baseline_task_success_percent = [Math]::Round($baselineSuccess, 2)
         aos_task_success_percent = [Math]::Round($aosSuccess, 2)

@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P6, P6.3 installation/DX, P6.4 controlled adoption, and P6.5 Agent efficiency complete; P6.2 qualification remains active; P7 remains planned
+**Status:** P6, P6.3 installation/DX, P6.4 controlled adoption, and P6.5 Agent efficiency complete; P6.2 and P6.6 qualifications remain active; P7 remains planned
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -226,6 +226,15 @@ task success remains 3/3 and average total input tokens fall 46.284%, commands
 fall 45.455%, and elapsed time falls 25.708%. Uncached-token behavior is
 reported separately and no provider billing reduction is claimed. See
 [P6.5 Agent Efficiency Qualification](evidence/P6.5-AGENT-EFFICIENCY-QUALIFICATION.md).
+
+P6.6 real repository generalization is active across 15 patch-and-test tasks
+on fixed AOS, `trenux_rust`, and TRENUX snapshots. The complete structural
+matrix passes, and the AOS onboarding canary keeps 100% task success while
+reducing total input tokens 31.26%, elapsed time 39.20%, and commands 50%.
+The 60-execution consumer gate remains open because the configured consumer
+reached its usage limit; quota failures are excluded from performance claims.
+See
+[P6.6 Real Repository Generalization](evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md).
 
 Validate the complete design and standards governance with:
 
