@@ -16,6 +16,9 @@ const requiredEvidence = [
   "AOS_P6_2_RECONCILIATION_OK",
   "AOS_P6_2_QUALIFICATION_SAMPLE_OK",
   "AOS_P6_2_DURATION_GATE_ACTIVE",
+  "passed samples: 2",
+  "observed duration: 0.762998 days",
+  "three clean detached repositories",
   "Production-like-runtime-ready:     NOT CLAIMED",
 ];
 const missing = requiredEvidence.filter((marker) => !evidence.includes(marker));

@@ -316,6 +316,10 @@ Immediate local gates pass. The real duration gate requires at least seven
 elapsed days, seven passing samples, no failed samples, deterministic nested
 P6.1 replay, and zero source-repository mutation. Same-day CI uses a zero-day
 harness smoke only to verify portability; it cannot close the duration gate.
+The official pinned lane currently has two passing samples, zero failures,
+zero integrity failures, 24 governed Extension Runs, and 0.762998 observed
+days. Daily automation now runs only against three clean detached repositories
+at the original pinned commits.
 Evidence is recorded in
 [`P6.2 Production-like Qualification`](evidence/P6.2-PRODUCTION-LIKE-QUALIFICATION.md).
 
