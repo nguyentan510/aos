@@ -53,6 +53,7 @@ foreach ($repositoryEnvironment in @("AOS_REPO", "TRENUX_RUST_REPO", "TRENUX_REP
                 mcp_call_count = 0
                 source_scope_preserved = $true
                 verification_passed = $true
+                prompt_sha256 = "baseline-$($scenario.id)"
             }
             $runs += [pscustomobject][ordered]@{
                 scenario_id = [string]$scenario.id
@@ -65,6 +66,7 @@ foreach ($repositoryEnvironment in @("AOS_REPO", "TRENUX_RUST_REPO", "TRENUX_REP
                 mcp_call_count = 0
                 source_scope_preserved = $true
                 verification_passed = $true
+                prompt_sha256 = "aos-$($scenario.id)"
             }
         }
     }

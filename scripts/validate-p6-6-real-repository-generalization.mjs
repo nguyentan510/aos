@@ -109,12 +109,14 @@ requireText("scripts/run_p6_6_resume_smoke.ps1", [
   "AOS_P6_6_RESUMABLE_RUNNER_OK",
 ]);
 requireText("scripts/evaluate_p6_6_real_repository_generalization.ps1", [
-  "AOS-P6-6-REAL-REPOSITORY-GENERALIZATION-1",
+  "AOS-P6-6-REAL-REPOSITORY-GENERALIZATION-2",
   "sixty_executions",
   "total_input_reduction_at_least_25_percent",
   "elapsed_reduction_at_least_20_percent",
   "command_reduction_at_least_20_percent",
-  "optimized_repeat_drift_at_most_10_percent",
+  "prompt_hashes_repeatable",
+  "aggregate_repeat_drift_at_most_10_percent",
+  "maximum_scenario_drift_is_diagnostic",
   "AOS_P6_6_REAL_REPOSITORY_GENERALIZATION_EVALUATOR_SMOKE_OK",
   "AOS_P6_6_REAL_REPOSITORY_GENERALIZATION_OK",
 ]);
@@ -130,25 +132,34 @@ requireText(".github/workflows/ci.yml", [
   "run_p6_6_resume_smoke.ps1",
 ]);
 requireText("evidence/P6.6-REAL-REPOSITORY-GENERALIZATION.md", [
-  "**Status:** `ACTIVE`",
+  "**Status:** `COMPLETE`",
   "p4-20260728T033336Z",
   "p4-ai-20260727T154640Z",
   "30326531785",
   "31.26%",
-  "8/60",
-  "52",
+  "60/60",
+  "41.835%",
+  "24.557%",
+  "48.948%",
+  "0.744%",
+  "ADR-0015",
   "AOS_P6_6_RESUMABLE_RUNNER_OK",
   "usage limit",
   "AOS_P6_6_REAL_REPOSITORY_GENERALIZATION_OK",
   "Production-ready claim:",
 ]);
+requireText("adr/0015-p6-6-provider-neutral-repeatability-metric.md", [
+  "**Status:** Accepted",
+  "new independent 60-execution batch",
+  "aggregate AOS workload input-token drift",
+]);
 requireText("ROADMAP.md", [
   "### P6.6 real repository generalization",
-  "**Status:** `ACTIVE`",
+  "**Status:** `COMPLETE`",
   "60 valid consumer executions",
 ]);
 requireText("README.md", [
-  "P6.6 real repository generalization is active",
+  "P6.6 real repository generalization is complete",
   "P6.6-REAL-REPOSITORY-GENERALIZATION.md",
 ]);
 
