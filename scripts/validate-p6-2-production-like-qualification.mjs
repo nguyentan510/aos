@@ -11,19 +11,41 @@ const roadmap = readFileSync(join(root, "ROADMAP.md"), "utf8");
 const ci = readFileSync(join(root, ".github", "workflows", "ci.yml"), "utf8");
 
 const requiredEvidence = [
-  "**Status:** ACTIVE",
+  "**Status:** COMPLETE",
   "AOS_P6_2_FILESYSTEM_FAULT_INJECTION_OK",
   "AOS_P6_2_RECONCILIATION_OK",
   "AOS_P6_2_QUALIFICATION_SAMPLE_OK",
   "AOS_P6_2_DURATION_GATE_ACTIVE",
-  "passed samples: 2",
-  "observed duration: 0.762998 days",
-  "three clean detached repositories",
-  "Production-like-runtime-ready:     NOT CLAIMED",
+  "AOS_P6_2_ACCELERATED_QUALIFICATION_OK",
+  "samples: 8/8 PASS",
+  "governed Extension Runs: 96",
+  "observed duration: 0.000379 days",
+  "Production-like-runtime-ready:     BOUNDED PASS",
+  "Seven-day runtime resilience:      NOT CLAIMED",
 ];
 const missing = requiredEvidence.filter((marker) => !evidence.includes(marker));
 if (!roadmap.includes("### P6.2 production-like qualification")) {
   missing.push("ROADMAP P6.2 section");
+}
+for (const [relative, values] of [
+  ["adr/0012-p6-2-accelerated-qualification.md", [
+    "**Status:** Accepted",
+    "samples >= 8",
+    "governed Extension Runs >= 96",
+  ]],
+  ["scripts/run_p6_2_accelerated_qualification.ps1", [
+    "AOS_P6_2_ACCELERATED_QUALIFICATION_OK",
+    "TargetSamples = 8",
+    "MinimumDurationDays 0",
+    "total_extension_runs",
+  ]],
+]) {
+  const content = readFileSync(join(root, relative), "utf8");
+  for (const value of values) {
+    if (!content.includes(value)) {
+      missing.push(`${relative}: ${value}`);
+    }
+  }
 }
 for (const step of [
   "P6.2 filesystem fault-injection gate",

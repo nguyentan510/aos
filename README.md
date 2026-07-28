@@ -2,7 +2,7 @@
 
 > Project Intelligence Operating System for AI-assisted software development.
 
-**Status:** P6, P6.3 installation/DX, P6.4 controlled adoption, and P6.5 Agent efficiency complete; P6.2 and P6.6 qualifications remain active; P7 remains planned
+**Status:** P6, P6.2 accelerated qualification, P6.3 installation/DX, P6.4 controlled adoption, and P6.5 Agent efficiency complete; P6.6 qualification remains active; P7 remains planned
 
 AOS is an open-source product for making software repositories understandable,
 governable, and durable across human and AI-assisted development sessions. It
@@ -191,21 +191,21 @@ mutation. See
 [P6.1 Adoption and Hardening Review](evidence/P6.1-ADOPTION-HARDENING-REVIEW.md).
 This strengthens P6 evidence without activating P7.
 
-P6.2 is now an active production-like qualification follow-on. Filesystem
-fault-injection and governed recovery pass locally, including repair of an
-interrupted enable trace and replay of a reconciled extension Work with a new
-immutable Run revision. The installed-pilot harness has started collecting
-latency and control-data metrics over the same three repositories. Its
-seven-day duration gate remains `ACTIVE`; production-like-runtime-ready is not
-claimed. See
+P6.2 production-like functional qualification is complete for the bounded
+declarative-local slice. Filesystem fault-injection and governed recovery pass,
+and the ADR-0012 accelerated lane completes 8/8 pinned samples and 96 governed
+Extension Runs with zero failures, integrity failures, or source mutations.
+The separate historical calendar lane is retained at two real daily samples;
+the accelerated result is not described as a seven-day soak. See
 [P6.2 Production-like Qualification](evidence/P6.2-PRODUCTION-LIKE-QUALIFICATION.md).
 
 P6.3 is a completed, isolated developer-experience follow-on governed by
 [ADR-0011](adr/0011-p6-3-one-command-installation-and-setup.md). It adds
 `aos setup`, embedded reference manifests, checksum-verified Windows/Linux
 installers, offline installer gates, owned uninstall, and hosted release smoke.
-The official P6.2 lane remains pinned outside this repository and continues by
-daily automation; P6.3 does not waive its real elapsed-time gate. See
+The historical P6.2 calendar lane remains pinned outside this repository.
+ADR-0012 later closed P6.2 through separate accelerated evidence without
+rewriting that calendar lane. See
 [P6.3 Installation and Developer Experience](evidence/P6.3-INSTALLATION-DEVELOPER-EXPERIENCE.md).
 The CI-built
 [`v0.1.0-rc.4`](https://github.com/nguyentan510/aos/releases/tag/v0.1.0-rc.4)

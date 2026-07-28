@@ -1,7 +1,7 @@
 # AOS Roadmap
 
 **Status:** Canonical delivery sequence
-**Current maturity:** P6 and P6.3 installation/DX complete; P6.2 and P6.6 qualifications remain active
+**Current maturity:** P6, P6.2 accelerated qualification, and P6.3 installation/DX complete; P6.6 qualification remains active
 **Next eligible phase:** P7 only after qualification evidence and a measured scale need
 **Maturity model:** Evidence-gated capabilities, not promised release dates
 
@@ -305,36 +305,40 @@ This evidence does not activate P7 or claim production-like readiness.
 
 ### P6.2 production-like qualification
 
-**Status:** `ACTIVE`
+**Status:** `COMPLETE`
 
 P6.2 adds deterministic filesystem boundary injection, recovery of incomplete
 digest-bound Governance/Audit enable traces, extension-aware reconciliation,
 monotonic replay Run revisions, and an append-only installed-pilot metrics
 harness.
 
-Immediate local gates pass. The real duration gate requires at least seven
-elapsed days, seven passing samples, no failed samples, deterministic nested
-P6.1 replay, and zero source-repository mutation. Same-day CI uses a zero-day
-harness smoke only to verify portability; it cannot close the duration gate.
-The official pinned lane currently has two passing samples, zero failures,
-zero integrity failures, 24 governed Extension Runs, and 0.762998 observed
-days. Daily automation now runs only against three clean detached repositories
-at the original pinned commits.
+Immediate local gates pass. The historical pinned calendar lane records two
+passing samples, zero failures, zero integrity failures, 24 governed Extension
+Runs, and 0.762998 observed days. ADR-0012 then closes the blocking gate through
+an independent accelerated lane: 8/8 samples, 96 governed Extension Runs, zero
+failures, zero integrity failures, zero source mutations, deterministic nested
+capabilities, and revalidated result digests. Its observed duration is reported
+as 0.000379 days and is not described as a seven-day soak.
 Evidence is recorded in
 [`P6.2 Production-like Qualification`](evidence/P6.2-PRODUCTION-LIKE-QUALIFICATION.md).
 
-P7 remains ineligible without both completed qualification evidence and a
-measured performance, availability, or coordination bottleneck.
+**Closeout:** Passed on 2026-07-28 through the ADR-0012 bounded accelerated
+qualification. Production-like functional readiness is limited to the
+declarative local slice; seven-day resilience and production readiness are not
+claimed.
+
+P7 remains ineligible without a measured performance, availability, or
+coordination bottleneck and completion of the active P6.6 generalization gate.
 
 ### P6.3 one-command installation and developer experience
 
 **Status:** `COMPLETE`
 
-ADR-0011 authorizes this follow-on in an isolated lane while the official P6.2
-qualification continues against pinned binary, manifest, harness, and commit
-hashes outside the source repository. This is the accepted exception to the
-single-active-phase rule. It permits independent installation/DX work but does
-not advance elapsed time or change the production-like claim.
+ADR-0011 authorized this follow-on in an isolated lane while the original P6.2
+calendar qualification continued against pinned binary, manifest, harness,
+and commit hashes outside the source repository. This was the accepted
+exception to the single-active-phase rule. ADR-0012 later closed P6.2 through
+separate accelerated evidence without rewriting the calendar observations.
 
 P6.3 adds:
 
@@ -389,8 +393,9 @@ GitHub Actions run `30277600563` passes the structural pilot on fresh Windows
 and Ubuntu runners for implementation commit
 `bee4e369c20d0ada2fb9415e2a7573ce1825e77a`.
 
-P6.2 remains active on its separate pinned real-duration lane, and P7 remains
-planned pending a measured scaling bottleneck.
+At P6.4 closeout, P6.2 was still active on its separate pinned calendar lane.
+ADR-0012 subsequently closed P6.2 through bounded accelerated evidence. P7
+remains planned pending P6.6 and a measured scaling bottleneck.
 
 ### P6.5 Agent efficiency qualification
 
@@ -416,7 +421,8 @@ passes Windows and Ubuntu for implementation commit
 `ccaedf8b1203202e9fa26a8bf7d397332558a857`, including P6.4 regression and
 P6.5 deterministic evaluator gates.
 
-P6.5 does not activate P7 or change the separate P6.2 real-duration gate.
+P6.5 does not activate P7. ADR-0012 subsequently changes only the P6.2 blocking
+exit route while preserving the historical calendar evidence.
 
 ### P6.6 real repository generalization
 

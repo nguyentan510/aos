@@ -4,6 +4,8 @@
 **Date:** 2026-07-27
 **Decision owners:** AOS project
 **Supersedes:** None
+**Superseded in part by:** ADR-0012 for the P6.2 seven-day blocking exit
+condition
 **Affected documents:** `README.md`, `ROADMAP.md`, `specifications/004-cli.md`,
 `.github/workflows/ci.yml`, `.github/workflows/release.yml`
 
