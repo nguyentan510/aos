@@ -20,6 +20,7 @@ const requiredEvidence = [
   "samples: 8/8 PASS",
   "governed Extension Runs: 96",
   "observed duration: 0.000379 days",
+  "30327707481",
   "Production-like-runtime-ready:     BOUNDED PASS",
   "Seven-day runtime resilience:      NOT CLAIMED",
 ];

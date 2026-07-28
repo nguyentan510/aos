@@ -325,7 +325,9 @@ Evidence is recorded in
 **Closeout:** Passed on 2026-07-28 through the ADR-0012 bounded accelerated
 qualification. Production-like functional readiness is limited to the
 declarative local slice; seven-day resilience and production readiness are not
-claimed.
+claimed. Implementation commit
+`d7f7668258893f6ce4fa6af2fa68284614e7b641` passes GitHub Actions run
+`30327707481` on Windows and Ubuntu.
 
 P7 remains ineligible without a measured performance, availability, or
 coordination bottleneck and completion of the active P6.6 generalization gate.
